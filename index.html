@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gacha Tool</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 Gacha Tool</h1>
+        
+        <!-- 主視圖 -->
+        <div id="mainView" class="main-view">
+            <div class="form-group">
+                <label for="unlockPassword">密碼</label>
+                <input
+                    type="password"
+                    id="unlockPassword"
+                    name="unlockPassword"
+                    placeholder="輸入密碼"
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <button id="searchBtn">搜尋 LoRA 文件</button>
+
+            <div id="results" class="results">
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>正在搜尋 LoRA 文件...</p>
+                </div>
+
+                <div id="success-message"></div>
+                <div id="error-message"></div>
+
+                <div id="gallery-container" style="display: none;">
+                    <h2>📁 LoRA 模型</h2>
+                    <div id="gallery" class="gallery"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 詳細視圖 -->
+        <div id="detailView" class="detail-view">
+            <div class="detail-header">
+                <button id="backBtn" class="back-btn">← 返回</button>
+                <div class="detail-title" id="detailTitle"></div>
+            </div>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <script src="./app.js" defer></script>
+</body>
+</html>
+
