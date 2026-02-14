@@ -524,6 +524,31 @@
             border-color: #667eea;
         }
 
+        .scene-remove-btn {
+            width: auto;
+            min-width: 64px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            border-radius: 6px;
+            background: #f5f5f5;
+            color: #555;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .scene-remove-btn:hover:not(:disabled) {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .scene-action-cell {
+            width: 110px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
         .scene-checkbox-cell {
             width: 140px;
             text-align: center;
