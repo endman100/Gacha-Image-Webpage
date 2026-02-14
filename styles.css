@@ -446,6 +446,184 @@
             border-left: 4px solid #667eea;
         }
 
+        .scene-section {
+            margin-top: 18px;
+        }
+
+        .scene-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .scene-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #333;
+            margin: 0;
+        }
+
+        .scene-btn {
+            width: auto;
+            min-width: 96px;
+            padding: 8px 14px;
+            font-size: 13px;
+            line-height: 1;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .scene-table-wrapper {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .scene-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .scene-table thead th {
+            text-align: left;
+            font-size: 13px;
+            font-weight: 700;
+            color: #555;
+            background: #f9f9f9;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .scene-table td {
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: top;
+        }
+
+        .scene-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .scene-textarea {
+            width: 100%;
+            min-height: 70px;
+            resize: vertical;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.4;
+            font-family: inherit;
+        }
+
+        .scene-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .scene-checkbox-cell {
+            width: 140px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .scene-checkbox {
+            transform: scale(1.1);
+            cursor: pointer;
+        }
+
+        .scene-footer {
+            margin-top: 10px;
+        }
+
+        .scene-footer .scene-btn {
+            min-width: 110px;
+        }
+
+        #generalScenesStatus,
+        #characterScenesStatus {
+            margin-top: 10px;
+        }
+
+        .runpod-summary {
+            font-size: 13px;
+            font-weight: 600;
+            color: inherit;
+            margin-bottom: 10px;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .runpod-progress-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 280px;
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        .runpod-progress-row {
+            display: grid;
+            grid-template-columns: 36px 1fr 64px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .runpod-progress-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #555;
+            text-align: center;
+        }
+
+        .runpod-progress-bar {
+            height: 10px;
+            background: #eaeaea;
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid #e1e1e1;
+        }
+
+        .runpod-progress-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            transition: width 0.2s ease;
+        }
+
+        .runpod-progress-fill.is-waiting {
+            background: #cfcfcf;
+        }
+
+        .runpod-progress-fill.is-queued {
+            background: #b8c4f3;
+        }
+
+        .runpod-progress-fill.is-submitting,
+        .runpod-progress-fill.is-running,
+        .runpod-progress-fill.is-uploading {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .runpod-progress-fill.is-done {
+            background: #3a3;
+        }
+
+        .runpod-progress-fill.is-failed {
+            background: #c33;
+        }
+
+        .runpod-progress-state {
+            font-size: 12px;
+            font-weight: 700;
+            color: #555;
+            text-align: right;
+        }
+
         .target-folder-section {
             margin-top: 20px;
         }
@@ -494,6 +672,39 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .target-folder-loading {
+            width: 100%;
+            height: 100%;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: #fafafa;
+            color: #666;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .target-folder-loading.is-error {
+            color: #c33;
+            background: #fff5f5;
+        }
+
+        .mini-spinner {
+            border: 3px solid #f0f0f0;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            line-height: 1;
         }
 
         .target-folder-item img {

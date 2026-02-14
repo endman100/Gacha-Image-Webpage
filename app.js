@@ -29,6 +29,7 @@
         const targetFolderImageCache = {};
         const targetFolderSortOrder = {};
         const loraFeatureCache = {};
+        let hfHubModulePromise = null;
 
         searchBtn.addEventListener('click', searchLoRAFiles);
         unlockPasswordInput.addEventListener('keypress', (e) => {
@@ -410,6 +411,41 @@
             html += '<button class="upload-btn" id="runpodBtn">生成 Gacha</button>';
             html += '</div>';
             html += '<div id="runpodStatus" class="upload-status"></div>';
+
+            html += '<div class="scene-section" id="generalScenesSection">';
+            html += '<div class="scene-header">';
+            html += '<div class="scene-title">通用角色場景</div>';
+            html += '<button class="upload-btn scene-btn" id="saveGeneralScenesBtn" type="button">儲存</button>';
+            html += '</div>';
+            html += '<div class="scene-table-wrapper">';
+            html += '<table class="scene-table">';
+            html += '<thead><tr><th>場景設計</th><th>維持衣服設計</th><th>prompt</th></tr></thead>';
+            html += '<tbody id="generalScenesTbody"></tbody>';
+            html += '</table>';
+            html += '</div>';
+            html += '<div class="scene-footer">';
+            html += '<button class="sort-btn scene-btn" id="addGeneralScenesRowBtn" type="button">新增一列</button>';
+            html += '</div>';
+            html += '<div id="generalScenesStatus" class="upload-status"></div>';
+            html += '</div>';
+
+            html += '<div class="scene-section" id="characterScenesSection">';
+            html += '<div class="scene-header">';
+            html += '<div class="scene-title">專用角色場景</div>';
+            html += '<button class="upload-btn scene-btn" id="saveCharacterScenesBtn" type="button">儲存</button>';
+            html += '</div>';
+            html += '<div class="scene-table-wrapper">';
+            html += '<table class="scene-table">';
+            html += '<thead><tr><th>場景設計</th><th>維持衣服設計</th><th>prompt</th></tr></thead>';
+            html += '<tbody id="characterScenesTbody"></tbody>';
+            html += '</table>';
+            html += '</div>';
+            html += '<div class="scene-footer">';
+            html += '<button class="sort-btn scene-btn" id="addCharacterScenesRowBtn" type="button">新增一列</button>';
+            html += '</div>';
+            html += '<div id="characterScenesStatus" class="upload-status"></div>';
+            html += '</div>';
+
             html += '</div>';
 
             // 第三行：結果圖片
@@ -427,6 +463,7 @@
             detailContent.innerHTML = html;
             
             document.getElementById('runpodBtn').addEventListener('click', () => runWorkflowWithRunpod(loraName));
+            setupSceneEditors(loraName);
             document.getElementById('sortImagesBtn').addEventListener('click', () => {
                 targetFolderSortOrder[loraName] = targetFolderSortOrder[loraName] === 'asc' ? 'desc' : 'asc';
                 updateSortButtonText(loraName);
@@ -436,6 +473,270 @@
             updateSortButtonText(loraName);
 
             loadDetailJsonAndTargetImages(loraName, loraData);
+        }
+
+        function setupSceneEditors(loraName) {
+            const generalTbody = document.getElementById('generalScenesTbody');
+            const characterTbody = document.getElementById('characterScenesTbody');
+
+            const saveGeneralBtn = document.getElementById('saveGeneralScenesBtn');
+            const addGeneralBtn = document.getElementById('addGeneralScenesRowBtn');
+            const saveCharacterBtn = document.getElementById('saveCharacterScenesBtn');
+            const addCharacterBtn = document.getElementById('addCharacterScenesRowBtn');
+
+            if (!generalTbody || !characterTbody || !saveGeneralBtn || !addGeneralBtn || !saveCharacterBtn || !addCharacterBtn) {
+                return;
+            }
+
+            addGeneralBtn.addEventListener('click', () => {
+                appendSceneRow(generalTbody, { scenes: '', prompt: '', keepClothes: false });
+            });
+
+            addCharacterBtn.addEventListener('click', () => {
+                appendSceneRow(characterTbody, { scenes: '', prompt: '', keepClothes: false });
+            });
+
+            saveGeneralBtn.addEventListener('click', async () => {
+                await saveScenesFromTable({
+                    loraName,
+                    tbody: generalTbody,
+                    statusElementId: 'generalScenesStatus',
+                    saveButton: saveGeneralBtn,
+                    type: 'general'
+                });
+            });
+
+            saveCharacterBtn.addEventListener('click', async () => {
+                await saveScenesFromTable({
+                    loraName,
+                    tbody: characterTbody,
+                    statusElementId: 'characterScenesStatus',
+                    saveButton: saveCharacterBtn,
+                    type: 'character'
+                });
+            });
+
+            // 先放一行空白，避免載入中時是空表
+            appendSceneRow(generalTbody, { scenes: '', prompt: '', keepClothes: false });
+            appendSceneRow(characterTbody, { scenes: '', prompt: '', keepClothes: false });
+
+            void loadScenesIntoTable({ type: 'general', loraName, tbody: generalTbody, statusElementId: 'generalScenesStatus' });
+            void loadScenesIntoTable({ type: 'character', loraName, tbody: characterTbody, statusElementId: 'characterScenesStatus' });
+        }
+
+        function appendSceneRow(tbody, row) {
+            const normalized = normalizeSceneRow(row);
+
+            const tr = document.createElement('tr');
+            tr.className = 'scene-row';
+
+            const scenesTd = document.createElement('td');
+            const scenesInput = document.createElement('textarea');
+            scenesInput.className = 'scene-textarea';
+            scenesInput.value = normalized.scenes;
+            scenesInput.placeholder = '輸入場景設計';
+            scenesTd.appendChild(scenesInput);
+
+            const keepTd = document.createElement('td');
+            keepTd.className = 'scene-checkbox-cell';
+            const keepInput = document.createElement('input');
+            keepInput.type = 'checkbox';
+            keepInput.checked = normalized.keepClothes;
+            keepInput.className = 'scene-checkbox';
+            keepTd.appendChild(keepInput);
+
+            const promptTd = document.createElement('td');
+            const promptInput = document.createElement('textarea');
+            promptInput.className = 'scene-textarea';
+            promptInput.value = normalized.prompt;
+            promptInput.placeholder = '輸入 prompt';
+            promptTd.appendChild(promptInput);
+
+            tr.append(scenesTd, keepTd, promptTd);
+            tbody.appendChild(tr);
+        }
+
+        function normalizeSceneRow(row) {
+            const scenes = (row?.scenes ?? row?.scene ?? row?.['場景設計'] ?? '').toString();
+            const prompt = (row?.prompt ?? '').toString();
+            const keepClothes = !!(row?.keepClothes ?? row?.keep_clothes ?? row?.['change clothes']);
+            return { scenes, prompt, keepClothes };
+        }
+
+        function collectScenesFromTable(tbody) {
+            const rows = Array.from(tbody.querySelectorAll('tr.scene-row'));
+            const result = [];
+
+            for (const tr of rows) {
+                const textareas = tr.querySelectorAll('textarea.scene-textarea');
+                const checkbox = tr.querySelector('input.scene-checkbox');
+                const scenes = (textareas?.[0]?.value || '').trim();
+                const prompt = (textareas?.[1]?.value || '').trim();
+                const keepClothes = !!checkbox?.checked;
+
+                // 全空列不寫入
+                if (!scenes && !prompt && !keepClothes) {
+                    continue;
+                }
+
+                result.push({
+                    scenes,
+                    prompt,
+                    // 需求指定 key 名稱
+                    'change clothes': keepClothes
+                });
+            }
+
+            return result;
+        }
+
+        function setStatus(elementId, message, type) {
+            const el = document.getElementById(elementId);
+            if (!el) {
+                return;
+            }
+
+            el.textContent = message;
+            el.className = `upload-status show ${type}`;
+        }
+
+        function encodeHfPath(path) {
+            const parts = String(path || '').split('/').filter(Boolean);
+            return parts.map(part => encodeURIComponent(part)).join('/');
+        }
+
+        function sanitizeSceneName(name) {
+            return String(name || '')
+                .replace(/[\\/]/g, '_')
+                .replace(/\.{2,}/g, '_')
+                .trim();
+        }
+
+        function getScenesFilePath(type, loraName) {
+            if (type === 'general') {
+                return 'general scenes.json';
+            }
+
+            const safeName = sanitizeSceneName(loraName);
+            return `character scenes/${safeName}.json`;
+        }
+
+        async function fetchRepoJsonFile(repoId, filePath, token) {
+            const encodedPath = encodeHfPath(filePath);
+            const url = `https://huggingface.co/${repoId}/resolve/main/${encodedPath}`;
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.status === 404) {
+                return null;
+            }
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const text = await response.text();
+            if (!text.trim()) {
+                return [];
+            }
+
+            const parsed = JSON.parse(text);
+            return parsed;
+        }
+
+        function normalizeScenesFileContent(raw) {
+            const list = Array.isArray(raw) ? raw : [];
+            return list.map(item => ({
+                scenes: (item?.scenes ?? '').toString(),
+                prompt: (item?.prompt ?? '').toString(),
+                keepClothes: !!item?.['change clothes']
+            }));
+        }
+
+        async function loadScenesIntoTable({ type, loraName, tbody, statusElementId }) {
+            const token = resolvedHfToken;
+            const repoId = 'Gazai-ai/Gacha-LoRA';
+
+            if (!token) {
+                setStatus(statusElementId, '請先解鎖 token 才能載入', 'error');
+                return;
+            }
+
+            const filePath = getScenesFilePath(type, loraName);
+            setStatus(statusElementId, `載入中：/${filePath}`, 'loading');
+
+            try {
+                const json = await fetchRepoJsonFile(repoId, filePath, token);
+                const rows = normalizeScenesFileContent(json);
+
+                tbody.innerHTML = '';
+                if (rows.length === 0) {
+                    appendSceneRow(tbody, { scenes: '', prompt: '', keepClothes: false });
+                    setStatus(statusElementId, `尚無資料：/${filePath}`, 'loading');
+                    return;
+                }
+
+                rows.forEach(row => appendSceneRow(tbody, row));
+                setStatus(statusElementId, `已載入：/${filePath}（${rows.length} 列）`, 'success');
+            } catch (error) {
+                // 解析失敗或權限問題
+                setStatus(statusElementId, `載入失敗：/${filePath}（${error.message}）`, 'error');
+            }
+        }
+
+        async function getHfHubModule() {
+            if (!hfHubModulePromise) {
+                hfHubModulePromise = import('https://esm.sh/@huggingface/hub');
+            }
+            return hfHubModulePromise;
+        }
+
+        async function saveScenesFromTable({ type, loraName, tbody, statusElementId, saveButton }) {
+            const token = resolvedHfToken;
+            const repoId = 'Gazai-ai/Gacha-LoRA';
+
+            if (!token) {
+                setStatus(statusElementId, '請先解鎖 token 才能儲存', 'error');
+                return;
+            }
+
+            const filePath = getScenesFilePath(type, loraName);
+            const rows = collectScenesFromTable(tbody);
+
+            saveButton.disabled = true;
+            setStatus(statusElementId, `儲存中：/${filePath}`, 'loading');
+
+            try {
+                const hub = await getHfHubModule();
+                const repo = { type: 'model', name: repoId };
+                const jsonText = JSON.stringify(rows, null, 2);
+                const blob = new Blob([jsonText], { type: 'application/json' });
+
+                await hub.uploadFiles({
+                    repo,
+                    accessToken: token,
+                    files: [
+                        {
+                            path: filePath,
+                            content: blob
+                        }
+                    ],
+                    commitTitle: type === 'general'
+                        ? 'Save general scenes'
+                        : `Save character scenes for ${sanitizeSceneName(loraName)}`
+                });
+
+                setStatus(statusElementId, `已儲存：/${filePath}（${rows.length} 列）`, 'success');
+            } catch (error) {
+                setStatus(statusElementId, `儲存失敗：/${filePath}（${error.message}）`, 'error');
+            } finally {
+                saveButton.disabled = false;
+            }
         }
 
         function updateSortButtonText(loraName) {
@@ -471,8 +772,54 @@
             }
 
             container.innerHTML = imageList
-                .map(item => `<div class="target-folder-item"><img src="${item.objectUrl}" alt="${escapeHtml(item.fileName)}"></div>`)
+                .map(item => {
+                    const domKey = item.domKey || makeImageDomKey(item.path);
+                    const status = item.status || (item.objectUrl ? 'loaded' : 'loading');
+
+                    if (status === 'loaded' && item.objectUrl) {
+                        return `<div class="target-folder-item" data-img-key="${domKey}"><img src="${item.objectUrl}" alt="${escapeHtml(item.fileName)}"></div>`;
+                    }
+
+                    if (status === 'error') {
+                        return `<div class="target-folder-item" data-img-key="${domKey}"><div class="target-folder-loading is-error">載入失敗</div></div>`;
+                    }
+
+                    return `<div class="target-folder-item" data-img-key="${domKey}"><div class="target-folder-loading"><div class="mini-spinner"></div><div class="loading-text">載入中...</div></div></div>`;
+                })
                 .join('');
+        }
+
+        function makeImageDomKey(path) {
+            try {
+                return encodeURIComponent(path || '');
+            } catch (_) {
+                return String(path || '');
+            }
+        }
+
+        function updateTargetFolderImageTile(loraName, entry) {
+            const container = document.getElementById('targetFolderImages');
+            if (!container || !entry) {
+                return;
+            }
+
+            const domKey = entry.domKey || makeImageDomKey(entry.path);
+            const tile = container.querySelector(`[data-img-key="${domKey}"]`);
+            if (!tile) {
+                return;
+            }
+
+            if (entry.status === 'loaded' && entry.objectUrl) {
+                tile.innerHTML = `<img src="${entry.objectUrl}" alt="${escapeHtml(entry.fileName)}">`;
+                return;
+            }
+
+            if (entry.status === 'error') {
+                tile.innerHTML = `<div class="target-folder-loading is-error">載入失敗</div>`;
+                return;
+            }
+
+            tile.innerHTML = `<div class="target-folder-loading"><div class="mini-spinner"></div><div class="loading-text">載入中...</div></div>`;
         }
 
         async function runWorkflowWithRunpod(loraName) {
@@ -495,7 +842,19 @@
             }
 
             runpodBtn.disabled = true;
-            showRunpodStatus(`準備執行 ${times} 次 Workflow...`, 'loading');
+            const progressUI = createRunpodProgressUI(times);
+            if (progressUI) {
+                progressUI.setType('loading');
+                progressUI.setSummary(`準備執行 ${times} 次 Workflow...`, {
+                    total: times,
+                    finished: 0,
+                    success: 0,
+                    failed: 0,
+                    running: 0
+                });
+            } else {
+                showRunpodStatus(`準備執行 ${times} 次 Workflow...`, 'loading');
+            }
 
             try {
                 const endpointId = 'vvknohtwuum3te';
@@ -520,15 +879,30 @@
                 const failedRounds = [];
 
                 function renderProgress(message, type = 'loading') {
+                    if (progressUI) {
+                        progressUI.setType(type);
+                        progressUI.setSummary(message, {
+                            total: times,
+                            finished: finishedCount,
+                            success: uploadedCount,
+                            failed: failedCount,
+                            running: runningCount
+                        });
+                        return;
+                    }
+
                     const waitingCount = Math.max(0, times - finishedCount - runningCount);
                     showRunpodStatus(
-                        `${message}｜進度 ${finishedCount}/${times}（成功 ${uploadedCount}，失敗 ${failedCount}，進行中 ${runningCount}，等待 ${waitingCount}）`,
+                        `進度 ${finishedCount}/${times}（成功 ${uploadedCount}，失敗 ${failedCount}，進行中 ${runningCount}，等待 ${waitingCount}）`,
                         type
                     );
                 }
 
                 async function runSingleRound(round) {
                     renderProgress(`第 ${round}/${times} 次：送出 Runpod 任務...`);
+                    if (progressUI) {
+                        progressUI.setRoundState(round, 'submitting', '送出任務中');
+                    }
                     const normalizedWorkflowInput = buildRunpodWorkflowInput(workflowData);
                     const features = await getCharacterFeaturesForLora(loraName);
                     const promptAdjustedWorkflowInput = applyCheckpointAndPromptOverrides(normalizedWorkflowInput, features);
@@ -540,7 +914,7 @@
                     const dataToSend = {
                         input: {
                             ...sanitizedWorkflowInput,
-                            // return_format: 'base64'
+                            return_format: 'base64'
                         }
                     };
                     console.log('Runpod input payload preview:', sanitizedWorkflowInput);
@@ -566,16 +940,28 @@
                         throw new Error('Runpod 回應缺少 job id');
                     }
 
-                    renderProgress(`第 ${round}/${times} 次：Runpod 任務執行中 (${jobId})`);
+                    renderProgress(`第 ${round}/${times} 次：Runpod 任務執行中`);
+                    if (progressUI) {
+                        progressUI.setRoundState(round, 'running', '生成中');
+                    }
 
-                    const output = await pollRunpodResult(endpointId, jobId, runpodToken);
-                    const imageSrc = extractLastGeneratedImage(output);
-                    console.log(`第 ${round}/${times} 次 Runpod 輸出結果:`, output, '提取的圖片 URL:', imageSrc);
+                    const output = await pollRunpodResult(endpointId, jobId, runpodToken, (progress) => {
+                        if (!progressUI) {
+                            return;
+                        }
+                        progressUI.setRoundRunningProgress(round, progress);
+                    });
+                    const imageInfo = extractLastGeneratedImageInfo(output);
+                    const imageSrc = await resolveImageDownloadUrl(imageInfo);
+                    console.log(`第 ${round}/${times} 次 Runpod 輸出結果:`, output, '提取的圖片資訊:', imageInfo, '最終下載 URL:', imageSrc);
 
                     if (!imageSrc) {
                         throw new Error(`第 ${round}/${times} 次：任務完成，但找不到最後生成圖片`);
                     }
 
+                    if (progressUI) {
+                        progressUI.setRoundState(round, 'uploading', '下載/上傳中');
+                    }
                     const imageBlob = await fetchGeneratedImageBlob(imageSrc);
                     const extension = detectImageExtension(imageBlob.type, imageSrc);
                     const fileName = `${loraName}-${Date.now()}-${round}.${extension}`;
@@ -594,6 +980,9 @@
 
                     uploadedCount += 1;
                     renderProgress(`第 ${round}/${times} 次完成，已上傳 ${uploadedCount}/${times} 張到 /${uploadPath}`);
+                    if (progressUI) {
+                        progressUI.setRoundState(round, 'done', '完成');
+                    }
 
                     await loadTargetFolderImages(loraName, hfToken, { reset: false });
                 }
@@ -607,6 +996,9 @@
                         nextRound += 1;
                         runningCount += 1;
                         renderProgress(`第 ${round}/${times} 次：已加入執行`);
+                        if (progressUI) {
+                            progressUI.setRoundState(round, 'queued', '排隊中');
+                        }
 
                         try {
                             await runSingleRound(round);
@@ -614,6 +1006,9 @@
                             failedCount += 1;
                             failedRounds.push(`第 ${round} 次：${error.message}`);
                             renderProgress(`第 ${round}/${times} 次失敗`);
+                            if (progressUI) {
+                                progressUI.setRoundState(round, 'failed', String(error?.message || '失敗'));
+                            }
                         } finally {
                             runningCount -= 1;
                             finishedCount += 1;
@@ -629,9 +1024,9 @@
 
                 if (failedCount > 0) {
                     const preview = failedRounds.slice(0, 3).join('；');
-                    showRunpodStatus(`✗ Workflow 完成（成功 ${uploadedCount}/${times}，失敗 ${failedCount}）。${preview}`, 'error');
+                    renderProgress(`✗ Workflow 完成（成功 ${uploadedCount}/${times}，失敗 ${failedCount}）。${preview}`, 'error');
                 } else {
-                    showRunpodStatus(`✓ Workflow 全部完成，已上傳 ${uploadedCount} 張圖片（共 ${times} 次）`, 'success');
+                    renderProgress(`✓ Workflow 全部完成，已上傳 ${uploadedCount} 張圖片（共 ${times} 次）`, 'success');
                 }
             } catch (error) {
                 showRunpodStatus(`✗ Workflow 執行失敗: ${error.message}`, 'error');
@@ -640,7 +1035,115 @@
             }
         }
 
+        function createRunpodProgressUI(times) {
+            const runpodStatus = document.getElementById('runpodStatus');
+            if (!runpodStatus) {
+                return null;
+            }
+
+            const summaryEl = document.createElement('div');
+            summaryEl.className = 'runpod-summary';
+
+            const listEl = document.createElement('div');
+            listEl.className = 'runpod-progress-list';
+
+            const roundEls = Array.from({ length: times }, (_, index) => {
+                const round = index + 1;
+
+                const rowEl = document.createElement('div');
+                rowEl.className = 'runpod-progress-row';
+
+                const labelEl = document.createElement('div');
+                labelEl.className = 'runpod-progress-label';
+                labelEl.textContent = String(round);
+
+                const barEl = document.createElement('div');
+                barEl.className = 'runpod-progress-bar';
+
+                const fillEl = document.createElement('div');
+                fillEl.className = 'runpod-progress-fill is-waiting';
+                fillEl.style.width = '0%';
+                barEl.appendChild(fillEl);
+
+                const stateEl = document.createElement('div');
+                stateEl.className = 'runpod-progress-state';
+                stateEl.textContent = '等待';
+
+                rowEl.append(labelEl, barEl, stateEl);
+                listEl.appendChild(rowEl);
+
+                return { fillEl, stateEl, rowEl };
+            });
+
+            runpodStatus.innerHTML = '';
+            runpodStatus.append(summaryEl, listEl);
+
+            function setType(type) {
+                runpodStatus.className = `upload-status show ${type}`;
+            }
+
+            function setSummary(message, stats) {
+                const waitingCount = Math.max(0, (stats?.total || 0) - (stats?.finished || 0) - (stats?.running || 0));
+                const line = `進度 ${stats?.finished || 0}/${stats?.total || 0}（成功 ${stats?.success || 0}，失敗 ${stats?.failed || 0}，進行中 ${stats?.running || 0}，等待 ${waitingCount}）`;
+                summaryEl.textContent = line;
+            }
+
+            const stateMeta = {
+                waiting: { label: '等待', percent: 0, cls: 'is-waiting' },
+                queued: { label: '排隊中', percent: 1, cls: 'is-queued' },
+                submitting: { label: '送出中', percent: 2, cls: 'is-submitting' },
+                running: { label: '生成中', percent: 2, cls: 'is-running' },
+                uploading: { label: '上傳中', percent: 99, cls: 'is-uploading' },
+                done: { label: '完成', percent: 100, cls: 'is-done' },
+                failed: { label: '失敗', percent: 100, cls: 'is-failed' }
+            };
+
+            function setRoundState(round, state, detail) {
+                const item = roundEls[round - 1];
+                if (!item) {
+                    return;
+                }
+
+                const meta = stateMeta[state] || stateMeta.waiting;
+                item.fillEl.className = `runpod-progress-fill ${meta.cls}`;
+                item.fillEl.style.width = `${meta.percent}%`;
+                item.stateEl.textContent = meta.label;
+                item.rowEl.title = detail ? String(detail) : '';
+            }
+
+            function setRoundRunningProgress(round, progress) {
+                const item = roundEls[round - 1];
+                if (!item) {
+                    return;
+                }
+
+                const max = Number(progress?.max);
+                const value = Number(progress?.value);
+                const ratio = (Number.isFinite(max) && max > 0 && Number.isFinite(value))
+                    ? Math.min(1, Math.max(0, value / max))
+                    : 0;
+
+                // 排隊 1% + 送出 1% + 生成 97% + 上傳 1%
+                const percent = 2 + Math.round(97 * ratio);
+                item.fillEl.className = 'runpod-progress-fill is-running';
+                item.fillEl.style.width = `${Math.min(99, Math.max(2, percent))}%`;
+                item.stateEl.textContent = `生成中 ${Number.isFinite(value) ? value : 0}/${Number.isFinite(max) ? max : 0}`;
+            }
+
+            return {
+                setType,
+                setSummary,
+                setRoundState,
+                setRoundRunningProgress
+            };
+        }
+
         async function fetchGeneratedImageBlob(imageSrc) {
+            const base64Blob = tryBuildBlobFromBase64(imageSrc);
+            if (base64Blob) {
+                return base64Blob;
+            }
+
             try {
                 const response = await fetch(imageSrc);
                 if (!response.ok) {
@@ -652,10 +1155,99 @@
                     || /Failed to fetch|CORS|Access-Control-Allow-Origin/i.test(String(error?.message || ''));
 
                 if (isCorsLike) {
-                    throw new Error('下載生成圖片被瀏覽器 CORS 限制擋下（Runpod CloudFront URL 無 Access-Control-Allow-Origin）。請改用 return_format=base64，或使用後端代理下載後再上傳 HF。');
+                    throw new Error('下載生成圖片被瀏覽器 CORS 限制擋下（S3/CloudFront 未允許目前網域）。請在來源端設定 Access-Control-Allow-Origin。');
                 }
 
                 throw error;
+            }
+        }
+
+        function tryBuildBlobFromBase64(imageSrc) {
+            if (typeof imageSrc !== 'string' || !imageSrc.trim()) {
+                return null;
+            }
+
+            const trimmed = imageSrc.trim();
+
+            const dataUrlMatch = trimmed.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/i);
+            if (dataUrlMatch) {
+                const mimeType = dataUrlMatch[1].toLowerCase();
+                const base64Body = dataUrlMatch[2].replace(/\s/g, '');
+                return base64ToBlob(base64Body, mimeType);
+            }
+
+            if (/^[A-Za-z0-9+/=\s]+$/.test(trimmed) && trimmed.length > 1000) {
+                return base64ToBlob(trimmed.replace(/\s/g, ''), 'image/png');
+            }
+
+            return null;
+        }
+
+        function base64ToBlob(base64Body, mimeType) {
+            const binary = atob(base64Body);
+            const bytes = new Uint8Array(binary.length);
+            for (let index = 0; index < binary.length; index += 1) {
+                bytes[index] = binary.charCodeAt(index);
+            }
+            return new Blob([bytes], { type: mimeType || 'image/png' });
+        }
+
+        function parseS3ObjKey(objKey) {
+            if (!objKey || typeof objKey !== 'string') {
+                return null;
+            }
+
+            const cleanKey = objKey.replace(/^\/+/, '');
+            const slashIndex = cleanKey.indexOf('/');
+            if (slashIndex <= 0 || slashIndex >= cleanKey.length - 1) {
+                return null;
+            }
+
+            return {
+                bucket: cleanKey.slice(0, slashIndex),
+                key: cleanKey.slice(slashIndex + 1)
+            };
+        }
+
+        async function resolveImageDownloadUrl(imageInfo) {
+            if (!imageInfo || !imageInfo.url) {
+                return null;
+            }
+
+            const accessKeyId = privateTokenData?.AKI;
+            const secretAccessKey = privateTokenData?.ASAK;
+            const parsed = parseS3ObjKey(imageInfo.objKey);
+
+            if (!accessKeyId || !secretAccessKey || !parsed) {
+                return imageInfo.url;
+            }
+
+            try {
+                const region = privateTokenData?.S3_REGION || privateTokenData?.s3_region || 'us-east-1';
+                const [{ S3Client, GetObjectCommand }, { getSignedUrl }] = await Promise.all([
+                    import('https://esm.sh/@aws-sdk/client-s3'),
+                    import('https://esm.sh/@aws-sdk/s3-request-presigner')
+                ]);
+
+                const s3Client = new S3Client({
+                    region,
+                    credentials: {
+                        accessKeyId,
+                        secretAccessKey
+                    }
+                });
+
+                return await getSignedUrl(
+                    s3Client,
+                    new GetObjectCommand({
+                        Bucket: parsed.bucket,
+                        Key: parsed.key
+                    }),
+                    { expiresIn: 3600 }
+                );
+            } catch (error) {
+                console.warn('使用 AKI/ASAK 產生 S3 簽名 URL 失敗，退回 Runpod URL:', error?.message || error);
+                return imageInfo.url;
             }
         }
 
@@ -681,9 +1273,9 @@
             return 'png';
         }
 
-        async function pollRunpodResult(endpointId, jobId, runpodToken) {
+        async function pollRunpodResult(endpointId, jobId, runpodToken, onProgress) {
             const intervalMs = 2000;
-            const timeoutMs = 600000;
+            const timeoutMs = 1200000;
             const maxAttempts = Math.ceil(timeoutMs / intervalMs);
 
             for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -700,6 +1292,19 @@
 
                 const statusData = await statusRes.json();
                 const status = statusData.status;
+
+                const progressMessage = statusData?.output?.message;
+                if (progressMessage && typeof progressMessage === 'object' && !Array.isArray(progressMessage)) {
+                    const max = Number(progressMessage.progress_1_max);
+                    const value = Number(progressMessage.progress_1_value);
+                    if (Number.isFinite(max) && Number.isFinite(value) && typeof onProgress === 'function') {
+                        onProgress({
+                            max,
+                            value,
+                            raw: progressMessage.raw || null
+                        });
+                    }
+                }
 
                 if (status === 'COMPLETED') {
                     return statusData.output;
@@ -1047,22 +1652,28 @@
             return {};
         }
 
-        function extractLastGeneratedImage(output) {
+        function extractLastGeneratedImageInfo(output) {
             if (output && typeof output === 'object') {
                 if (Array.isArray(output.message) && output.message.length > 0) {
                     const lastMessage = output.message[output.message.length - 1];
                     if (lastMessage && typeof lastMessage.url === 'string' && /^https?:\/\//i.test(lastMessage.url)) {
-                        return lastMessage.url;
+                        return {
+                            url: lastMessage.url,
+                            objKey: typeof lastMessage.obj_key === 'string' ? lastMessage.obj_key : null
+                        };
                     }
                 }
 
                 if (Array.isArray(output.download_files) && output.download_files.length > 0) {
                     const lastDownload = output.download_files[output.download_files.length - 1];
                     if (typeof lastDownload === 'string' && /^https?:\/\//i.test(lastDownload)) {
-                        return lastDownload;
+                        return { url: lastDownload, objKey: null };
                     }
                     if (lastDownload && typeof lastDownload.url === 'string' && /^https?:\/\//i.test(lastDownload.url)) {
-                        return lastDownload.url;
+                        return {
+                            url: lastDownload.url,
+                            objKey: typeof lastDownload.obj_key === 'string' ? lastDownload.obj_key : null
+                        };
                     }
                 }
             }
@@ -1107,7 +1718,7 @@
                 return null;
             }
 
-            return candidates[candidates.length - 1];
+            return { url: candidates[candidates.length - 1], objKey: null };
         }
 
         function showRunpodStatus(message, type) {
@@ -1231,28 +1842,72 @@
                     return;
                 }
 
+                // 先把 UI placeholder 插入，避免等所有圖片讀完才顯示
                 for (const item of itemsToLoad) {
-                    const fileRes = await fetch(`https://huggingface.co/${repoId}/resolve/main/${item.path}`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
+                    const name = item.path.split('/').pop() || item.path;
+                    if (!targetFolderImageCache[loraName][item.path]) {
+                        targetFolderImageCache[loraName][item.path] = {
+                            path: item.path,
+                            fileName: name,
+                            domKey: makeImageDomKey(item.path),
+                            objectUrl: null,
+                            status: 'loading'
+                        };
+                    } else {
+                        targetFolderImageCache[loraName][item.path].fileName = name;
+                        targetFolderImageCache[loraName][item.path].domKey = makeImageDomKey(item.path);
+                        if (!targetFolderImageCache[loraName][item.path].objectUrl) {
+                            targetFolderImageCache[loraName][item.path].status = 'loading';
                         }
-                    });
-
-                    if (!fileRes.ok) {
-                        continue;
                     }
 
-                    const blob = await fileRes.blob();
-                    const objectUrl = URL.createObjectURL(blob);
-                    const name = item.path.split('/').pop() || item.path;
-                    targetFolderImageCache[loraName][item.path] = {
-                        path: item.path,
-                        fileName: name,
-                        objectUrl
-                    };
                     knownPaths.add(item.path);
                 }
 
+                renderTargetFolderImages(loraName);
+
+                const concurrency = 6;
+                let cursor = 0;
+
+                async function downloadWorker() {
+                    while (cursor < itemsToLoad.length) {
+                        const current = itemsToLoad[cursor];
+                        cursor += 1;
+
+                        const entry = targetFolderImageCache[loraName][current.path];
+                        if (!entry || entry.objectUrl) {
+                            continue;
+                        }
+
+                        try {
+                            const fileRes = await fetch(`https://huggingface.co/${repoId}/resolve/main/${current.path}`, {
+                                headers: {
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            });
+
+                            if (!fileRes.ok) {
+                                entry.status = 'error';
+                                updateTargetFolderImageTile(loraName, entry);
+                                continue;
+                            }
+
+                            const blob = await fileRes.blob();
+                            entry.objectUrl = URL.createObjectURL(blob);
+                            entry.status = 'loaded';
+                            updateTargetFolderImageTile(loraName, entry);
+                        } catch (_) {
+                            entry.status = 'error';
+                            updateTargetFolderImageTile(loraName, entry);
+                        }
+                    }
+                }
+
+                await Promise.all(
+                    Array.from({ length: Math.min(concurrency, itemsToLoad.length) }, () => downloadWorker())
+                );
+
+                // 下載完成後再依排序重排一次（不影響已載入圖片）
                 renderTargetFolderImages(loraName);
             } catch (error) {
                 container.innerHTML = `<div class="target-folder-empty">載入目標資料夾圖片失敗: ${escapeHtml(error.message)}</div>`;
