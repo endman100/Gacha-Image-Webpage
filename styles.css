@@ -485,6 +485,7 @@
         .scene-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }
 
         .scene-table thead th {
@@ -495,6 +496,16 @@
             background: #f9f9f9;
             padding: 10px;
             border-bottom: 1px solid #eee;
+        }
+
+        .scene-table thead th:nth-child(3),
+        .scene-table td:nth-child(3) {
+            width: 150px;
+        }
+
+        .scene-table thead th:nth-child(4),
+        .scene-table td:nth-child(4) {
+            width: 140px;
         }
 
         .scene-table td {
@@ -510,7 +521,8 @@
         .scene-textarea {
             width: 100%;
             min-height: 70px;
-            resize: vertical;
+            resize: none;
+            overflow: hidden;
             padding: 10px;
             border: 2px solid #ddd;
             border-radius: 6px;
@@ -543,29 +555,101 @@
             box-shadow: none;
         }
 
+        .scene-gemini-btn {
+            width: auto;
+            min-width: 96px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.2;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .scene-gemini-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         .scene-action-cell {
             width: 110px;
             text-align: center;
-            vertical-align: middle;
+            vertical-align: top;
+            white-space: nowrap;
+        }
+
+        .scene-action-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
 
         .scene-checkbox-cell {
             width: 140px;
             text-align: center;
             vertical-align: middle;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .scene-checkbox {
-            transform: scale(1.1);
+            appearance: none;
+            width: 44px;
+            height: 24px;
+            border-radius: 999px;
+            border: 2px solid #c9c9c9;
+            background: #e6e6e6;
             cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.1s;
+        }
+
+        .scene-checkbox::after {
+            content: '';
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            transform: translateX(-10px);
+            transition: transform 0.2s ease;
+        }
+
+        .scene-checkbox:checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .scene-checkbox:checked::after {
+            transform: translateX(10px);
+        }
+
+        .scene-checkbox:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.35);
         }
 
         .scene-footer {
             margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .scene-footer .scene-btn {
             min-width: 110px;
+        }
+
+        .scene-ai-btn {
+            min-width: 140px;
         }
 
         #generalScenesStatus,

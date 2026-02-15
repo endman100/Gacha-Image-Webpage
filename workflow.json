@@ -1,4 +1,4 @@
-{
+﻿{
   "8": {
     "inputs": {
       "samples": [
@@ -12,7 +12,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "20": {
@@ -42,7 +42,7 @@
     },
     "class_type": "EmptyLatentImage",
     "_meta": {
-      "title": "空Latent图像"
+      "title": "Empty Latent Image"
     }
   },
   "45": {
@@ -76,7 +76,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "61": {
@@ -92,7 +92,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码 prompt"
+      "title": "CLIP Text Encode Prompt"
     }
   },
   "76": {
@@ -108,7 +108,7 @@
     },
     "class_type": "VAEEncode",
     "_meta": {
-      "title": "VAE编码"
+      "title": "VAE Encode"
     }
   },
   "105": {
@@ -117,7 +117,7 @@
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "K采样器选择"
+      "title": "KSampler Select"
     }
   },
   "107": {
@@ -129,7 +129,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "Random Noise"
     }
   },
   "108": {
@@ -158,7 +158,7 @@
     },
     "class_type": "InpaintModelConditioning",
     "_meta": {
-      "title": "内补模型条件"
+      "title": "Inpaint Model Conditioning"
     }
   },
   "109": {
@@ -173,7 +173,7 @@
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "基本调度器"
+      "title": "Basic Scheduler"
     }
   },
   "110": {
@@ -189,7 +189,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "111": {
@@ -205,7 +205,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "112": {
@@ -237,7 +237,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "114": {
@@ -265,7 +265,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "自定义采样器（高级）"
+      "title": "Custom Sampler (Advanced)"
     }
   },
   "115": {
@@ -360,7 +360,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "自定义采样器（高级）"
+      "title": "Custom Sampler (Advanced)"
     }
   },
   "142": {
@@ -372,7 +372,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "Random Noise"
     }
   },
   "144": {
@@ -388,7 +388,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "145": {
@@ -443,7 +443,7 @@
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "基本调度器"
+      "title": "Basic Scheduler"
     }
   },
   "152": {
@@ -452,7 +452,7 @@
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "K采样器选择"
+      "title": "KSampler Select"
     }
   },
   "157": {
@@ -481,7 +481,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "159": {
@@ -494,7 +494,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "182": {
@@ -550,7 +550,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "200": {
@@ -579,7 +579,7 @@
     },
     "class_type": "ImageFromBatch",
     "_meta": {
-      "title": "从批次获取图像"
+      "title": "Get Image From Batch"
     }
   },
   "203": {
@@ -592,7 +592,7 @@
     },
     "class_type": "ImageToMask",
     "_meta": {
-      "title": "图像转换为遮罩"
+      "title": "Image to Mask"
     }
   },
   "204": {
@@ -635,7 +635,7 @@
     },
     "class_type": "UpscaleModelLoader",
     "_meta": {
-      "title": "加载放大模型"
+      "title": "Load Upscale Model"
     }
   },
   "254": {
@@ -651,7 +651,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "257": {
@@ -660,7 +660,7 @@
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "K采样器选择"
+      "title": "KSampler Select"
     }
   },
   "258": {
@@ -672,7 +672,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "Random Noise"
     }
   },
   "259": {
@@ -685,7 +685,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "261": {
@@ -714,7 +714,7 @@
     },
     "class_type": "InpaintModelConditioning",
     "_meta": {
-      "title": "内补模型条件"
+      "title": "Inpaint Model Conditioning"
     }
   },
   "263": {
@@ -726,7 +726,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "264": {
@@ -856,7 +856,7 @@
     },
     "class_type": "ImageFromBatch",
     "_meta": {
-      "title": "从批次获取图像"
+      "title": "Get Image From Batch"
     }
   },
   "271": {
@@ -869,7 +869,7 @@
     },
     "class_type": "ImageToMask",
     "_meta": {
-      "title": "图像转换为遮罩"
+      "title": "Image to Mask"
     }
   },
   "273": {
@@ -901,7 +901,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "276": {
@@ -925,7 +925,7 @@
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "基本调度器"
+      "title": "Basic Scheduler"
     }
   },
   "278": {
@@ -954,7 +954,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "281": {
@@ -982,7 +982,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "自定义采样器（高级）"
+      "title": "Custom Sampler (Advanced)"
     }
   },
   "282": {
@@ -991,7 +991,7 @@
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "K采样器选择"
+      "title": "KSampler Select"
     }
   },
   "283": {
@@ -1003,7 +1003,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "Random Noise"
     }
   },
   "284": {
@@ -1016,7 +1016,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "286": {
@@ -1045,7 +1045,7 @@
     },
     "class_type": "InpaintModelConditioning",
     "_meta": {
-      "title": "内补模型条件"
+      "title": "Inpaint Model Conditioning"
     }
   },
   "288": {
@@ -1057,7 +1057,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "289": {
@@ -1187,7 +1187,7 @@
     },
     "class_type": "ImageFromBatch",
     "_meta": {
-      "title": "从批次获取图像"
+      "title": "Get Image From Batch"
     }
   },
   "296": {
@@ -1200,7 +1200,7 @@
     },
     "class_type": "ImageToMask",
     "_meta": {
-      "title": "图像转换为遮罩"
+      "title": "Image to Mask"
     }
   },
   "298": {
@@ -1232,7 +1232,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "301": {
@@ -1256,7 +1256,7 @@
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "基本调度器"
+      "title": "Basic Scheduler"
     }
   },
   "303": {
@@ -1285,7 +1285,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "306": {
@@ -1313,7 +1313,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "自定义采样器（高级）"
+      "title": "Custom Sampler (Advanced)"
     }
   },
   "325": {
@@ -1388,7 +1388,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "334": {
@@ -1404,7 +1404,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码 prompt"
+      "title": "CLIP Text Encode Prompt"
     }
   },
   "335": {
@@ -1450,7 +1450,7 @@
     },
     "class_type": "VAEEncode",
     "_meta": {
-      "title": "VAE编码"
+      "title": "VAE Encode"
     }
   },
   "338": {
@@ -1466,7 +1466,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "342": {
@@ -1543,7 +1543,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "394": {
@@ -1559,7 +1559,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "395": {
@@ -1873,7 +1873,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "622": {
@@ -2087,7 +2087,7 @@
     },
     "class_type": "ImageToMask",
     "_meta": {
-      "title": "图像转换为遮罩"
+      "title": "Image to Mask"
     }
   },
   "650": {
@@ -2182,7 +2182,7 @@
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "基本调度器"
+      "title": "Basic Scheduler"
     }
   },
   "700": {
@@ -2222,7 +2222,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "706": {
@@ -2235,7 +2235,7 @@
     },
     "class_type": "ImageToMask",
     "_meta": {
-      "title": "图像转换为遮罩"
+      "title": "Image to Mask"
     }
   },
   "707": {
@@ -2256,7 +2256,7 @@
     "inputs": {},
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "711": {
@@ -2305,7 +2305,7 @@
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "基本调度器"
+      "title": "Basic Scheduler"
     }
   },
   "722": {
@@ -2381,7 +2381,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "自定义采样器（高级）"
+      "title": "Custom Sampler (Advanced)"
     }
   },
   "730": {
@@ -2393,7 +2393,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "Random Noise"
     }
   },
   "731": {
@@ -2409,7 +2409,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "739": {
@@ -2455,7 +2455,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "747": {
@@ -2464,7 +2464,7 @@
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "K采样器选择"
+      "title": "KSampler Select"
     }
   },
   "748": {
@@ -2492,7 +2492,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "自定义采样器（高级）"
+      "title": "Custom Sampler (Advanced)"
     }
   },
   "750": {
@@ -2505,7 +2505,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "751": {
@@ -2518,7 +2518,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码"
+      "title": "CLIP Text Encode"
     }
   },
   "752": {
@@ -2533,7 +2533,7 @@
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "基本调度器"
+      "title": "Basic Scheduler"
     }
   },
   "758": {
@@ -2545,7 +2545,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "Random Noise"
     }
   },
   "759": {
@@ -2587,7 +2587,7 @@
     },
     "class_type": "InpaintModelConditioning",
     "_meta": {
-      "title": "内补模型条件"
+      "title": "Inpaint Model Conditioning"
     }
   },
   "772": {
@@ -2794,7 +2794,7 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "随机噪波"
+      "title": "Random Noise"
     }
   },
   "950": {
@@ -2822,7 +2822,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "自定义采样器（高级）"
+      "title": "Custom Sampler (Advanced)"
     }
   },
   "951": {
@@ -2883,7 +2883,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "1033": {
@@ -2924,7 +2924,7 @@
     },
     "class_type": "ImageFromBatch",
     "_meta": {
-      "title": "从批次获取图像"
+      "title": "Get Image From Batch"
     }
   },
   "1036": {
@@ -2937,7 +2937,7 @@
     },
     "class_type": "ImageToMask",
     "_meta": {
-      "title": "图像转换为遮罩"
+      "title": "Image to Mask"
     }
   },
   "1039": {
@@ -3027,7 +3027,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "1045": {
@@ -3096,7 +3096,7 @@
     },
     "class_type": "VAEEncode",
     "_meta": {
-      "title": "VAE编码"
+      "title": "VAE Encode"
     }
   },
   "1051": {
@@ -3257,7 +3257,7 @@
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "K采样器选择"
+      "title": "KSampler Select"
     }
   },
   "1064": {
@@ -3309,7 +3309,7 @@
     },
     "class_type": "VAEEncode",
     "_meta": {
-      "title": "VAE编码"
+      "title": "VAE Encode"
     }
   },
   "1069": {
@@ -3341,7 +3341,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP文本编码 prompt"
+      "title": "CLIP Text Encode Prompt"
     }
   },
   "1078": {
@@ -3357,7 +3357,7 @@
     },
     "class_type": "VAEDecode",
     "_meta": {
-      "title": "VAE解码"
+      "title": "VAE Decode"
     }
   },
   "1081": {
@@ -3811,7 +3811,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "1175": {
@@ -3835,7 +3835,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "1178": {
@@ -3851,7 +3851,7 @@
     },
     "class_type": "VAEEncode",
     "_meta": {
-      "title": "VAE编码"
+      "title": "VAE Encode"
     }
   },
   "1179": {
@@ -3895,7 +3895,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "1196": {
@@ -3944,7 +3944,7 @@
     },
     "class_type": "MaskToImage",
     "_meta": {
-      "title": "遮罩转换为图像"
+      "title": "Mask to Image"
     }
   },
   "1210": {

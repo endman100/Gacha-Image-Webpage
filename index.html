@@ -10,47 +10,50 @@
     <div class="container">
         <h1>🎲 Gacha Tool</h1>
         
-        <!-- 主視圖 -->
+        <!-- Main View -->
         <div id="mainView" class="main-view">
             <div class="form-group">
-                <label for="unlockPassword">密碼</label>
+                <label for="unlockPassword">Password</label>
                 <input
                     type="password"
                     id="unlockPassword"
                     name="unlockPassword"
-                    placeholder="輸入密碼"
+                    placeholder="Enter password"
                     autocomplete="current-password"
                 >
             </div>
 
-            <button id="searchBtn">搜尋 LoRA 文件</button>
+            <button id="searchBtn">Search LoRA Files</button>
 
             <div id="results" class="results">
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
-                    <p>正在搜尋 LoRA 文件...</p>
+                    <p>Searching LoRA files...</p>
                 </div>
 
                 <div id="success-message"></div>
                 <div id="error-message"></div>
 
                 <div id="gallery-container" style="display: none;">
-                    <h2>📁 LoRA 模型</h2>
+                    <h2>📁 LoRA Models</h2>
                     <div id="gallery" class="gallery"></div>
                 </div>
             </div>
         </div>
 
-        <!-- 詳細視圖 -->
+        <!-- Detail View -->
         <div id="detailView" class="detail-view">
             <div class="detail-header">
-                <button id="backBtn" class="back-btn">← 返回</button>
+                <button id="backBtn" class="back-btn">← Back</button>
                 <div class="detail-title" id="detailTitle"></div>
             </div>
             <div id="detailContent"></div>
         </div>
     </div>
 
+    <script src="./gemini.js" defer></script>
+    <script src="./huggingface.js" defer></script>
+    <script src="./runpod.js" defer></script>
     <script src="./app.js" defer></script>
 </body>
 </html>
