@@ -448,7 +448,7 @@ function appendSceneRow(tbody, row) {
     const convertBtn = document.createElement('button');
     convertBtn.type = 'button';
     convertBtn.className = 'scene-gemini-btn';
-    convertBtn.textContent = '轉成 Prompt';
+    convertBtn.textContent = 'Convert to Prompt';
     convertBtn.title = 'Use Gemini to convert the scene design into a prompt';
     convertBtn.addEventListener('click', async () => {
         const sceneText = scenesInput.value.trim();
