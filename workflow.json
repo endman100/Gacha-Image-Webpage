@@ -1,0 +1,3976 @@
+{
+  "8": {
+    "inputs": {
+      "samples": [
+        "950",
+        1
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "20": {
+    "inputs": {
+      "lora_name": "pinkhairReg2-000020.safetensors",
+      "strength_model": 0.8,
+      "strength_clip": 0.8,
+      "model": [
+        "1180",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "load LoRA"
+    }
+  },
+  "21": {
+    "inputs": {
+      "width": 768,
+      "height": 1280,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent图像"
+    }
+  },
+  "45": {
+    "inputs": {
+      "text": "masterpiece, best quality, highres, 8K, ultra detailed,\nGAZAI,\n1girl, full body, anime style,\naverage height, slim, teen, pink hair, purple eyes, pink skin, middle size breasts, long legs, narrow waist, broad shoulders, thin eyebrows, large eyes, small nose,\nlooking at viewer,\nrunning with arms waving towards lover, bikini swimsuit, strapless bikini top, side tie bikini bottoms, summer beach, daytime sunny, bright full smile, profile view,\ndetailed background,"
+    },
+    "class_type": "Text Multiline",
+    "_meta": {
+      "title": "positive prompt"
+    }
+  },
+  "46": {
+    "inputs": {
+      "text": "padding, blurry, border, margin, worst quality, multiple views, bad quality, low quality, lowres, displeasing, very displeasing, bad anatomy, bad hands, scan artifacts, monochrome, greyscale, signature, twitter username, jpeg artifacts, 2koma, 4koma, guro, extra digits, fewer digits, white background, simple background, blurry background, background poeple,"
+    },
+    "class_type": "Text Multiline",
+    "_meta": {
+      "title": "Text Multiline"
+    }
+  },
+  "60": {
+    "inputs": {
+      "text": [
+        "46",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "61": {
+    "inputs": {
+      "text": [
+        "700",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码 prompt"
+    }
+  },
+  "76": {
+    "inputs": {
+      "pixels": [
+        "325",
+        2
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "105": {
+    "inputs": {
+      "sampler_name": "deis"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "107": {
+    "inputs": {
+      "noise_seed": [
+        "599",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "108": {
+    "inputs": {
+      "noise_mask": true,
+      "positive": [
+        "110",
+        0
+      ],
+      "negative": [
+        "111",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ],
+      "pixels": [
+        "115",
+        1
+      ],
+      "mask": [
+        "115",
+        2
+      ]
+    },
+    "class_type": "InpaintModelConditioning",
+    "_meta": {
+      "title": "内补模型条件"
+    }
+  },
+  "109": {
+    "inputs": {
+      "scheduler": "exponential",
+      "steps": 40,
+      "denoise": 0.6,
+      "model": [
+        "384",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "110": {
+    "inputs": {
+      "text": [
+        "236",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "111": {
+    "inputs": {
+      "text": [
+        "46",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "112": {
+    "inputs": {
+      "stitcher": [
+        "115",
+        0
+      ],
+      "inpainted_image": [
+        "113",
+        0
+      ]
+    },
+    "class_type": "InpaintStitchImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Stitch"
+    }
+  },
+  "113": {
+    "inputs": {
+      "samples": [
+        "114",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "114": {
+    "inputs": {
+      "noise": [
+        "107",
+        0
+      ],
+      "guider": [
+        "793",
+        0
+      ],
+      "sampler": [
+        "105",
+        0
+      ],
+      "sigmas": [
+        "109",
+        0
+      ],
+      "latent_image": [
+        "108",
+        2
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "115": {
+    "inputs": {
+      "downscale_algorithm": "bilinear",
+      "upscale_algorithm": "bicubic",
+      "preresize": false,
+      "preresize_mode": "ensure minimum resolution",
+      "preresize_min_width": 1024,
+      "preresize_min_height": 1024,
+      "preresize_max_width": 16384,
+      "preresize_max_height": 16384,
+      "mask_fill_holes": true,
+      "mask_expand_pixels": 0,
+      "mask_invert": false,
+      "mask_blend_pixels": 0,
+      "mask_hipass_filter": 0,
+      "extend_for_outpainting": false,
+      "extend_up_factor": 1,
+      "extend_down_factor": 1,
+      "extend_left_factor": 1,
+      "extend_right_factor": 1,
+      "context_from_mask_extend_factor": 1.5,
+      "output_resize_to_target_size": true,
+      "output_target_width": 1024,
+      "output_target_height": 1024,
+      "output_padding": "32",
+      "device_mode": "gpu (much faster)",
+      "image": [
+        "1124",
+        0
+      ],
+      "mask": [
+        "706",
+        0
+      ]
+    },
+    "class_type": "InpaintCropImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Crop"
+    }
+  },
+  "116": {
+    "inputs": {
+      "threshold": 0.5,
+      "dilation": 0,
+      "bbox_detector": [
+        "117",
+        0
+      ],
+      "image": [
+        "1124",
+        0
+      ]
+    },
+    "class_type": "BboxDetectorCombined_v2",
+    "_meta": {
+      "title": "BBOX Detector (combined)"
+    }
+  },
+  "117": {
+    "inputs": {
+      "model_name": "bbox/face_yolov8m.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "141": {
+    "inputs": {
+      "noise": [
+        "142",
+        0
+      ],
+      "guider": [
+        "794",
+        0
+      ],
+      "sampler": [
+        "152",
+        0
+      ],
+      "sigmas": [
+        "151",
+        0
+      ],
+      "latent_image": [
+        "1178",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "142": {
+    "inputs": {
+      "noise_seed": [
+        "600",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "144": {
+    "inputs": {
+      "samples": [
+        "141",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "145": {
+    "inputs": {
+      "downscale_algorithm": "bilinear",
+      "upscale_algorithm": "bicubic",
+      "preresize": false,
+      "preresize_mode": "ensure minimum resolution",
+      "preresize_min_width": 1024,
+      "preresize_min_height": 1024,
+      "preresize_max_width": 16384,
+      "preresize_max_height": 16384,
+      "mask_fill_holes": true,
+      "mask_expand_pixels": 0,
+      "mask_invert": false,
+      "mask_blend_pixels": 0,
+      "mask_hipass_filter": 0,
+      "extend_for_outpainting": false,
+      "extend_up_factor": 1,
+      "extend_down_factor": 1,
+      "extend_left_factor": 1,
+      "extend_right_factor": 1,
+      "context_from_mask_extend_factor": 1.3,
+      "output_resize_to_target_size": true,
+      "output_target_width": 1024,
+      "output_target_height": 1024,
+      "output_padding": "32",
+      "device_mode": "gpu (much faster)",
+      "image": [
+        "189",
+        2
+      ],
+      "mask": [
+        "203",
+        0
+      ]
+    },
+    "class_type": "InpaintCropImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Crop"
+    }
+  },
+  "151": {
+    "inputs": {
+      "scheduler": "normal",
+      "steps": 30,
+      "denoise": 0.5,
+      "model": [
+        "1180",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "152": {
+    "inputs": {
+      "sampler_name": "deis"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "157": {
+    "inputs": {
+      "stitcher": [
+        "145",
+        0
+      ],
+      "inpainted_image": [
+        "144",
+        0
+      ]
+    },
+    "class_type": "InpaintStitchImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Stitch"
+    }
+  },
+  "158": {
+    "inputs": {
+      "text": "masterpiece, best quality, highres, 8K, ultra detailed,\nGAZAI, anime style,\nsmoth hand, smooth skin,",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "159": {
+    "inputs": {
+      "text": "red color,\ndeformed hands, extra fingers, fused fingers, bad anatomy, extra limbs, mutated hands, poorly drawn hands, malformed limbs, asymmetrical hands, missing arms, missing fingers, too many fingers, long fingers, ugly hands, disfigured hands, blurry hands, realistic proportions violation, claw-like fingers, webbed fingers, swollen hands, alien fingers, broken bones, hands merged with body, unnatural palm structure, floating hands, multiple arms, bad hands, weird hand positions\"",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "182": {
+    "inputs": {
+      "segs": [
+        "1085",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSToMaskList",
+    "_meta": {
+      "title": "SEGS to Mask List"
+    }
+  },
+  "189": {
+    "inputs": {
+      "total": [
+        "200",
+        0
+      ],
+      "initial_value1": [
+        "1104",
+        0
+      ]
+    },
+    "class_type": "logic forLoopStart",
+    "_meta": {
+      "title": "For Loop Start"
+    }
+  },
+  "190": {
+    "inputs": {
+      "flow": [
+        "189",
+        0
+      ],
+      "initial_value1": [
+        "157",
+        0
+      ]
+    },
+    "class_type": "logic forLoopEnd",
+    "_meta": {
+      "title": "For Loop End"
+    }
+  },
+  "198": {
+    "inputs": {
+      "mask": [
+        "204",
+        0
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "200": {
+    "inputs": {
+      "images": [
+        "707",
+        0
+      ]
+    },
+    "class_type": "VHS_GetImageCount",
+    "_meta": {
+      "title": "Get Image Count 🎥🅥🅗🅢"
+    }
+  },
+  "202": {
+    "inputs": {
+      "batch_index": [
+        "189",
+        1
+      ],
+      "length": 1,
+      "image": [
+        "707",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "从批次获取图像"
+    }
+  },
+  "203": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "202",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "图像转换为遮罩"
+    }
+  },
+  "204": {
+    "inputs": {
+      "mask": [
+        "182",
+        0
+      ]
+    },
+    "class_type": "MaskListToMaskBatch",
+    "_meta": {
+      "title": "Mask List to Mask Batch"
+    }
+  },
+  "232": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "1112",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Image Save"
+    }
+  },
+  "236": {
+    "inputs": {
+      "text": "masterpiece, best quality, highres, 8K, ultra detailed,\nGAZAI,\nthin eyebrows, large eyes, small nose,\n1girl, upper body, anime style,\nlooking at viewer,"
+    },
+    "class_type": "Text Multiline",
+    "_meta": {
+      "title": "positive prompt head"
+    }
+  },
+  "243": {
+    "inputs": {
+      "model_name": "4xNomos8k_atd_jpg.safetensors"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "加载放大模型"
+    }
+  },
+  "254": {
+    "inputs": {
+      "text": [
+        "46",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "257": {
+    "inputs": {
+      "sampler_name": "deis"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "258": {
+    "inputs": {
+      "noise_seed": [
+        "601",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "259": {
+    "inputs": {
+      "text": "deformed eyes, ugly eyes, cross-eyed, extra eyes, imperfect eyes, blurry pupils",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "261": {
+    "inputs": {
+      "noise_mask": true,
+      "positive": [
+        "280",
+        0
+      ],
+      "negative": [
+        "259",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ],
+      "pixels": [
+        "267",
+        1
+      ],
+      "mask": [
+        "267",
+        2
+      ]
+    },
+    "class_type": "InpaintModelConditioning",
+    "_meta": {
+      "title": "内补模型条件"
+    }
+  },
+  "263": {
+    "inputs": {
+      "mask": [
+        "264",
+        0
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "264": {
+    "inputs": {
+      "mask": [
+        "265",
+        0
+      ]
+    },
+    "class_type": "MaskListToMaskBatch",
+    "_meta": {
+      "title": "Mask List to Mask Batch"
+    }
+  },
+  "265": {
+    "inputs": {
+      "segs": [
+        "266",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSToMaskList",
+    "_meta": {
+      "title": "SEGS to Mask List"
+    }
+  },
+  "266": {
+    "inputs": {
+      "threshold": 0.3,
+      "dilation": 0,
+      "crop_factor": 1,
+      "drop_size": 1,
+      "labels": "all",
+      "bbox_detector": [
+        "276",
+        0
+      ],
+      "image": [
+        "1135",
+        0
+      ]
+    },
+    "class_type": "BboxDetectorSEGS",
+    "_meta": {
+      "title": "BBOX Detector (SEGS)"
+    }
+  },
+  "267": {
+    "inputs": {
+      "downscale_algorithm": "bilinear",
+      "upscale_algorithm": "bicubic",
+      "preresize": false,
+      "preresize_mode": "ensure minimum resolution",
+      "preresize_min_width": 102,
+      "preresize_min_height": 1024,
+      "preresize_max_width": 16384,
+      "preresize_max_height": 16384,
+      "mask_fill_holes": true,
+      "mask_expand_pixels": 16,
+      "mask_invert": false,
+      "mask_blend_pixels": 8,
+      "mask_hipass_filter": 0,
+      "extend_for_outpainting": false,
+      "extend_up_factor": 1,
+      "extend_down_factor": 1,
+      "extend_left_factor": 1,
+      "extend_right_factor": 1,
+      "context_from_mask_extend_factor": 1,
+      "output_resize_to_target_size": true,
+      "output_target_width": 1024,
+      "output_target_height": 1024,
+      "output_padding": "32",
+      "device_mode": "gpu (much faster)",
+      "image": [
+        "269",
+        2
+      ],
+      "mask": [
+        "271",
+        0
+      ]
+    },
+    "class_type": "InpaintCropImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Crop"
+    }
+  },
+  "268": {
+    "inputs": {
+      "images": [
+        "711",
+        0
+      ]
+    },
+    "class_type": "VHS_GetImageCount",
+    "_meta": {
+      "title": "Get Image Count 🎥🅥🅗🅢"
+    }
+  },
+  "269": {
+    "inputs": {
+      "total": [
+        "268",
+        0
+      ],
+      "initial_value1": [
+        "1109",
+        0
+      ]
+    },
+    "class_type": "logic forLoopStart",
+    "_meta": {
+      "title": "For Loop Start"
+    }
+  },
+  "270": {
+    "inputs": {
+      "batch_index": [
+        "269",
+        1
+      ],
+      "length": 1,
+      "image": [
+        "711",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "从批次获取图像"
+    }
+  },
+  "271": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "270",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "图像转换为遮罩"
+    }
+  },
+  "273": {
+    "inputs": {
+      "stitcher": [
+        "267",
+        0
+      ],
+      "inpainted_image": [
+        "274",
+        0
+      ]
+    },
+    "class_type": "InpaintStitchImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Stitch"
+    }
+  },
+  "274": {
+    "inputs": {
+      "samples": [
+        "281",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "276": {
+    "inputs": {
+      "model_name": "bbox/Eyeful_v2-Paired.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "277": {
+    "inputs": {
+      "scheduler": "normal",
+      "steps": 30,
+      "denoise": 0.4,
+      "model": [
+        "1180",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "278": {
+    "inputs": {
+      "flow": [
+        "269",
+        0
+      ],
+      "initial_value1": [
+        "273",
+        0
+      ]
+    },
+    "class_type": "logic forLoopEnd",
+    "_meta": {
+      "title": "For Loop End"
+    }
+  },
+  "280": {
+    "inputs": {
+      "text": "masterpiece, best quality, highres, 8K, ultra detailed, full-bleed, full screen, \nGAZAI, anime style,\nclose-up of perfect eyes, detailed iris and pupils, natural reflections, symmetrical and expressive",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "281": {
+    "inputs": {
+      "noise": [
+        "258",
+        0
+      ],
+      "guider": [
+        "795",
+        0
+      ],
+      "sampler": [
+        "257",
+        0
+      ],
+      "sigmas": [
+        "277",
+        0
+      ],
+      "latent_image": [
+        "261",
+        2
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "282": {
+    "inputs": {
+      "sampler_name": "deis"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "283": {
+    "inputs": {
+      "noise_seed": [
+        "602",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "284": {
+    "inputs": {
+      "text": "deformed feet, extra toes, missing toes, fused toes, ugly feet, bad anatomy, disproportionate limbs, blurry feet",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "286": {
+    "inputs": {
+      "noise_mask": true,
+      "positive": [
+        "305",
+        0
+      ],
+      "negative": [
+        "284",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ],
+      "pixels": [
+        "292",
+        1
+      ],
+      "mask": [
+        "292",
+        2
+      ]
+    },
+    "class_type": "InpaintModelConditioning",
+    "_meta": {
+      "title": "内补模型条件"
+    }
+  },
+  "288": {
+    "inputs": {
+      "mask": [
+        "289",
+        0
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "289": {
+    "inputs": {
+      "mask": [
+        "290",
+        0
+      ]
+    },
+    "class_type": "MaskListToMaskBatch",
+    "_meta": {
+      "title": "Mask List to Mask Batch"
+    }
+  },
+  "290": {
+    "inputs": {
+      "segs": [
+        "291",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSToMaskList",
+    "_meta": {
+      "title": "SEGS to Mask List"
+    }
+  },
+  "291": {
+    "inputs": {
+      "threshold": 0.3,
+      "dilation": 10,
+      "crop_factor": 2,
+      "drop_size": 10,
+      "labels": "all",
+      "bbox_detector": [
+        "301",
+        0
+      ],
+      "image": [
+        "1108",
+        0
+      ]
+    },
+    "class_type": "BboxDetectorSEGS",
+    "_meta": {
+      "title": "BBOX Detector (SEGS)"
+    }
+  },
+  "292": {
+    "inputs": {
+      "downscale_algorithm": "bilinear",
+      "upscale_algorithm": "bicubic",
+      "preresize": false,
+      "preresize_mode": "ensure minimum resolution",
+      "preresize_min_width": 1024,
+      "preresize_min_height": 1024,
+      "preresize_max_width": 16384,
+      "preresize_max_height": 16384,
+      "mask_fill_holes": true,
+      "mask_expand_pixels": 96,
+      "mask_invert": false,
+      "mask_blend_pixels": 64,
+      "mask_hipass_filter": 0,
+      "extend_for_outpainting": false,
+      "extend_up_factor": 1,
+      "extend_down_factor": 1,
+      "extend_left_factor": 1,
+      "extend_right_factor": 1,
+      "context_from_mask_extend_factor": 1,
+      "output_resize_to_target_size": true,
+      "output_target_width": 1024,
+      "output_target_height": 1024,
+      "output_padding": "32",
+      "device_mode": "gpu (much faster)",
+      "image": [
+        "294",
+        2
+      ],
+      "mask": [
+        "296",
+        0
+      ]
+    },
+    "class_type": "InpaintCropImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Crop"
+    }
+  },
+  "293": {
+    "inputs": {
+      "images": [
+        "712",
+        0
+      ]
+    },
+    "class_type": "VHS_GetImageCount",
+    "_meta": {
+      "title": "Get Image Count 🎥🅥🅗🅢"
+    }
+  },
+  "294": {
+    "inputs": {
+      "total": [
+        "293",
+        0
+      ],
+      "initial_value1": [
+        "1114",
+        0
+      ]
+    },
+    "class_type": "logic forLoopStart",
+    "_meta": {
+      "title": "For Loop Start"
+    }
+  },
+  "295": {
+    "inputs": {
+      "batch_index": [
+        "294",
+        1
+      ],
+      "length": 1,
+      "image": [
+        "712",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "从批次获取图像"
+    }
+  },
+  "296": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "295",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "图像转换为遮罩"
+    }
+  },
+  "298": {
+    "inputs": {
+      "stitcher": [
+        "292",
+        0
+      ],
+      "inpainted_image": [
+        "299",
+        0
+      ]
+    },
+    "class_type": "InpaintStitchImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Stitch"
+    }
+  },
+  "299": {
+    "inputs": {
+      "samples": [
+        "306",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "301": {
+    "inputs": {
+      "model_name": "bbox/adetailerFootYolov8x_v20.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "302": {
+    "inputs": {
+      "scheduler": "normal",
+      "steps": 30,
+      "denoise": 0.4,
+      "model": [
+        "1180",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "303": {
+    "inputs": {
+      "flow": [
+        "294",
+        0
+      ],
+      "initial_value1": [
+        "298",
+        0
+      ]
+    },
+    "class_type": "logic forLoopEnd",
+    "_meta": {
+      "title": "For Loop End"
+    }
+  },
+  "305": {
+    "inputs": {
+      "text": "masterpiece, best quality, highres, 8K, ultra detailed, full-bleed, full screen, \nGAZAI, anime style,\nanatomically correct feet, detailed toes, symmetrical foot structure, realistic proportions, well-formed soles and arches",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "306": {
+    "inputs": {
+      "noise": [
+        "283",
+        0
+      ],
+      "guider": [
+        "796",
+        0
+      ],
+      "sampler": [
+        "282",
+        0
+      ],
+      "sigmas": [
+        "302",
+        0
+      ],
+      "latent_image": [
+        "286",
+        2
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "325": {
+    "inputs": {
+      "total": 1,
+      "initial_value1": [
+        "1090",
+        0
+      ]
+    },
+    "class_type": "logic forLoopStart",
+    "_meta": {
+      "title": "For Loop Start"
+    }
+  },
+  "326": {
+    "inputs": {
+      "flow": [
+        "325",
+        0
+      ],
+      "initial_value1": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "logic forLoopEnd",
+    "_meta": {
+      "title": "For Loop End"
+    }
+  },
+  "327": {
+    "inputs": {
+      "expression": "a+b+100",
+      "a": [
+        "1179",
+        3
+      ],
+      "b": [
+        "325",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "328": {
+    "inputs": {
+      "expression": "0.7-0.1*a",
+      "a": [
+        "325",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "333": {
+    "inputs": {
+      "text": [
+        "46",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "334": {
+    "inputs": {
+      "text": [
+        "1125",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码 prompt"
+    }
+  },
+  "335": {
+    "inputs": {
+      "expression": "a+b+1000",
+      "a": [
+        "1179",
+        3
+      ],
+      "b": [
+        "342",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "336": {
+    "inputs": {
+      "expression": "0.1-0.05*a",
+      "a": [
+        "342",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "337": {
+    "inputs": {
+      "pixels": [
+        "342",
+        2
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "338": {
+    "inputs": {
+      "samples": [
+        "1118",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "342": {
+    "inputs": {
+      "total": 1,
+      "initial_value1": [
+        "1120",
+        0
+      ]
+    },
+    "class_type": "logic forLoopStart",
+    "_meta": {
+      "title": "For Loop Start"
+    }
+  },
+  "344": {
+    "inputs": {
+      "flow": [
+        "342",
+        0
+      ],
+      "initial_value1": [
+        "338",
+        0
+      ]
+    },
+    "class_type": "logic forLoopEnd",
+    "_meta": {
+      "title": "For Loop End"
+    }
+  },
+  "353": {
+    "inputs": {
+      "expression": "a+10000",
+      "a": [
+        "1179",
+        3
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "384": {
+    "inputs": {
+      "lora_name": "pinkhairReg2-000020.safetensors",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "model": [
+        "1180",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "load LoRA2"
+    }
+  },
+  "393": {
+    "inputs": {
+      "text": [
+        "947",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "394": {
+    "inputs": {
+      "text": [
+        "46",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "395": {
+    "inputs": {
+      "expression": "a+b",
+      "a": [
+        "1179",
+        3
+      ],
+      "b": [
+        "397",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "396": {
+    "inputs": {
+      "expression": "1.0 - a * 0.1",
+      "a": [
+        "397",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "397": {
+    "inputs": {
+      "total": 1,
+      "initial_value1": [
+        "21",
+        0
+      ]
+    },
+    "class_type": "logic forLoopStart",
+    "_meta": {
+      "title": "For Loop Start"
+    }
+  },
+  "399": {
+    "inputs": {
+      "flow": [
+        "397",
+        0
+      ],
+      "initial_value1": [
+        "729",
+        0
+      ]
+    },
+    "class_type": "logic forLoopEnd",
+    "_meta": {
+      "title": "For Loop End"
+    }
+  },
+  "599": {
+    "inputs": {
+      "expression": "a+100000",
+      "a": [
+        "1179",
+        3
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "600": {
+    "inputs": {
+      "expression": "a+1000000",
+      "a": [
+        "1179",
+        3
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "601": {
+    "inputs": {
+      "expression": "a+10000000",
+      "a": [
+        "1179",
+        3
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "602": {
+    "inputs": {
+      "expression": "a+100000000",
+      "a": [
+        "1179",
+        3
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "603": {
+    "inputs": {
+      "expression": "a",
+      "a": [
+        "938",
+        4
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": " NewW"
+    }
+  },
+  "604": {
+    "inputs": {
+      "iou_threshold": 0.5,
+      "segs": [
+        "611",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSNMSFilter",
+    "_meta": {
+      "title": "SEGS Filter (non max suppression)"
+    }
+  },
+  "609": {
+    "inputs": {
+      "model_name": "segm/yolo11x-seg.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "610": {
+    "inputs": {
+      "model_name": "segm/person_yolov8m-seg.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "611": {
+    "inputs": {
+      "segs1": [
+        "637",
+        0
+      ],
+      "segs2": [
+        "636",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSConcat",
+    "_meta": {
+      "title": "SEGS Concat"
+    }
+  },
+  "612": {
+    "inputs": {
+      "image": [
+        "1115",
+        0
+      ],
+      "mask": [
+        "635",
+        0
+      ]
+    },
+    "class_type": "ImageCropByMask",
+    "_meta": {
+      "title": "Image Crop By Mask"
+    }
+  },
+  "613": {
+    "inputs": {
+      "x": [
+        "1189",
+        2
+      ],
+      "y": [
+        "1189",
+        3
+      ],
+      "width": [
+        "1189",
+        4
+      ],
+      "height": [
+        "1189",
+        5
+      ],
+      "mask": [
+        "1095",
+        0
+      ]
+    },
+    "class_type": "CropMask",
+    "_meta": {
+      "title": "裁剪遮罩"
+    }
+  },
+  "614": {
+    "inputs": {
+      "width": [
+        "1189",
+        4
+      ],
+      "height": [
+        "1189",
+        5
+      ],
+      "x": [
+        "1189",
+        2
+      ],
+      "y": [
+        "1189",
+        3
+      ],
+      "image": [
+        "1115",
+        0
+      ]
+    },
+    "class_type": "ImageCrop",
+    "_meta": {
+      "title": "裁剪图像"
+    }
+  },
+  "615": {
+    "inputs": {
+      "expression": "a + b / 2",
+      "a": [
+        "938",
+        2
+      ],
+      "b": [
+        "938",
+        4
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "CenterX"
+    }
+  },
+  "617": {
+    "inputs": {
+      "expression": "c-a-b",
+      "a": [
+        "1189",
+        2
+      ],
+      "b": [
+        "1189",
+        4
+      ],
+      "c": [
+        "651",
+        0
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "RightPad"
+    }
+  },
+  "619": {
+    "inputs": {
+      "expression": "c-a-b",
+      "a": [
+        "1189",
+        3
+      ],
+      "b": [
+        "1189",
+        5
+      ],
+      "c": [
+        "651",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "DownPad"
+    }
+  },
+  "621": {
+    "inputs": {
+      "mask": [
+        "623",
+        1
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "622": {
+    "inputs": {
+      "left": [
+        "1189",
+        2
+      ],
+      "right": [
+        "617",
+        0
+      ],
+      "top": [
+        "1189",
+        3
+      ],
+      "bottom": [
+        "619",
+        0
+      ],
+      "extra_padding": 0,
+      "pad_mode": "color",
+      "color": "0, 0, 0",
+      "image": [
+        "621",
+        0
+      ],
+      "mask": [
+        "623",
+        1
+      ]
+    },
+    "class_type": "ImagePadKJ",
+    "_meta": {
+      "title": "ImagePad KJ"
+    }
+  },
+  "623": {
+    "inputs": {
+      "model": "BiRefNet-HR-matting",
+      "mask_blur": 0,
+      "mask_offset": 0,
+      "invert_output": false,
+      "refine_foreground": false,
+      "background": "Color",
+      "background_color": "#000000",
+      "image": [
+        "614",
+        0
+      ]
+    },
+    "class_type": "BiRefNetRMBG",
+    "_meta": {
+      "title": "BiRefNet 去除背景 (RMBG)"
+    }
+  },
+  "626": {
+    "inputs": {
+      "expression": "max(a - 5, 0)\n",
+      "a": [
+        "938",
+        3
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": " NewY"
+    }
+  },
+  "627": {
+    "inputs": {
+      "expression": "a + b / 2",
+      "a": [
+        "938",
+        3
+      ],
+      "b": [
+        "938",
+        5
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "CenterY"
+    }
+  },
+  "630": {
+    "inputs": {
+      "expression": "a - b / 2",
+      "a": [
+        "615",
+        1
+      ],
+      "b": [
+        "603",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": " NewX"
+    }
+  },
+  "633": {
+    "inputs": {
+      "expression": "a / b",
+      "a": [
+        "650",
+        0
+      ],
+      "b": [
+        "650",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "target_aspect"
+    }
+  },
+  "634": {
+    "inputs": {
+      "target": "area(=w*h)",
+      "order": true,
+      "take_start": 0,
+      "take_count": 1,
+      "segs": [
+        "604",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSOrderedFilter",
+    "_meta": {
+      "title": "SEGS Filter (ordered)"
+    }
+  },
+  "635": {
+    "inputs": {
+      "segs": [
+        "634",
+        0
+      ]
+    },
+    "class_type": "SegsToCombinedMask",
+    "_meta": {
+      "title": "SEGS to MASK (combined)"
+    }
+  },
+  "636": {
+    "inputs": {
+      "threshold": 0.3,
+      "dilation": 0,
+      "crop_factor": 1,
+      "drop_size": 10,
+      "labels": "all",
+      "segm_detector": [
+        "610",
+        1
+      ],
+      "image": [
+        "1115",
+        0
+      ]
+    },
+    "class_type": "SegmDetectorSEGS",
+    "_meta": {
+      "title": "SEGM Detector (SEGS)"
+    }
+  },
+  "637": {
+    "inputs": {
+      "threshold": 0.3,
+      "dilation": 0,
+      "crop_factor": 1,
+      "drop_size": 10,
+      "labels": "person",
+      "segm_detector": [
+        "609",
+        1
+      ],
+      "image": [
+        "1115",
+        0
+      ]
+    },
+    "class_type": "SegmDetectorSEGS",
+    "_meta": {
+      "title": "SEGM Detector (SEGS)"
+    }
+  },
+  "643": {
+    "inputs": {
+      "expression": "40 - a * 10",
+      "a": [
+        "325",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "647": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "622",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "图像转换为遮罩"
+    }
+  },
+  "650": {
+    "inputs": {
+      "image": [
+        "1115",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "获取图像尺寸"
+    }
+  },
+  "651": {
+    "inputs": {
+      "image": [
+        "1115",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "获取图像尺寸"
+    }
+  },
+  "655": {
+    "inputs": {
+      "width": [
+        "603",
+        0
+      ],
+      "height": [
+        "739",
+        0
+      ],
+      "x": [
+        "630",
+        0
+      ],
+      "y": [
+        "626",
+        0
+      ],
+      "image": [
+        "944",
+        0
+      ]
+    },
+    "class_type": "ImageCrop",
+    "_meta": {
+      "title": "裁剪图像"
+    }
+  },
+  "697": {
+    "inputs": {
+      "noise_sampler_type": "uniform",
+      "step_method": "rkf45",
+      "substep_method": "rk4",
+      "eta": 1,
+      "centralization": 0.02,
+      "normalization": 0.01,
+      "edge_enhancement": 0.05,
+      "perphist": 0,
+      "substeps": [
+        "741",
+        0
+      ],
+      "s_noise": 1,
+      "noise_modulation": "frequency",
+      "modulation_strength": 2,
+      "modulation_dims": 3,
+      "reversible_eta": 1
+    },
+    "class_type": "SamplerSupreme",
+    "_meta": {
+      "title": "SamplerSupreme"
+    }
+  },
+  "698": {
+    "inputs": {
+      "scheduler": "exponential",
+      "steps": 40,
+      "denoise": [
+        "396",
+        1
+      ],
+      "model": [
+        "384",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "700": {
+    "inputs": {
+      "string_a": [
+        "947",
+        0
+      ],
+      "string_b": "detail hands, detail face, detail hair, detail finger, detail teo,",
+      "delimiter": ","
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "连接"
+    }
+  },
+  "703": {
+    "inputs": {
+      "blur_radius": 31,
+      "sigma": 10,
+      "image": [
+        "705",
+        0
+      ]
+    },
+    "class_type": "ImageBlur",
+    "_meta": {
+      "title": "模糊图像"
+    }
+  },
+  "705": {
+    "inputs": {
+      "mask": [
+        "116",
+        0
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "706": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "703",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "图像转换为遮罩"
+    }
+  },
+  "707": {
+    "inputs": {
+      "blur_radius": 31,
+      "sigma": 10,
+      "image": [
+        "198",
+        0
+      ]
+    },
+    "class_type": "ImageBlur",
+    "_meta": {
+      "title": "模糊图像"
+    }
+  },
+  "708": {
+    "inputs": {},
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "711": {
+    "inputs": {
+      "blur_radius": 31,
+      "sigma": 10,
+      "image": [
+        "263",
+        0
+      ]
+    },
+    "class_type": "ImageBlur",
+    "_meta": {
+      "title": "模糊图像"
+    }
+  },
+  "712": {
+    "inputs": {
+      "blur_radius": 31,
+      "sigma": 10,
+      "image": [
+        "288",
+        0
+      ]
+    },
+    "class_type": "ImageBlur",
+    "_meta": {
+      "title": "模糊图像"
+    }
+  },
+  "715": {
+    "inputs": {
+      "scheduler": "exponential",
+      "steps": [
+        "643",
+        0
+      ],
+      "denoise": [
+        "328",
+        1
+      ],
+      "model": [
+        "384",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "722": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "width": [
+        "650",
+        0
+      ],
+      "height": [
+        "650",
+        1
+      ],
+      "crop": "disabled",
+      "image": [
+        "655",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "缩放图像"
+    }
+  },
+  "728": {
+    "inputs": {
+      "cfg_max": 12,
+      "cfg_min": 1,
+      "model": [
+        "384",
+        0
+      ],
+      "positive": [
+        "393",
+        0
+      ],
+      "unconditional": [
+        "394",
+        0
+      ],
+      "sigmas": [
+        "698",
+        0
+      ]
+    },
+    "class_type": "ScheduledCFGGuider",
+    "_meta": {
+      "title": "ScheduledCFGGuider"
+    }
+  },
+  "729": {
+    "inputs": {
+      "noise": [
+        "730",
+        0
+      ],
+      "guider": [
+        "728",
+        0
+      ],
+      "sampler": [
+        "697",
+        0
+      ],
+      "sigmas": [
+        "698",
+        0
+      ],
+      "latent_image": [
+        "397",
+        2
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "730": {
+    "inputs": {
+      "noise_seed": [
+        "395",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "731": {
+    "inputs": {
+      "samples": [
+        "399",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "739": {
+    "inputs": {
+      "expression": "a / b",
+      "a": [
+        "603",
+        1
+      ],
+      "b": [
+        "633",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": " NewH"
+    }
+  },
+  "741": {
+    "inputs": {
+      "expression": "4-a * 3",
+      "a": [
+        "397",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "746": {
+    "inputs": {
+      "samples": [
+        "748",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "747": {
+    "inputs": {
+      "sampler_name": "deis"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "748": {
+    "inputs": {
+      "noise": [
+        "758",
+        0
+      ],
+      "guider": [
+        "779",
+        0
+      ],
+      "sampler": [
+        "747",
+        0
+      ],
+      "sigmas": [
+        "752",
+        0
+      ],
+      "latent_image": [
+        "765",
+        2
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "750": {
+    "inputs": {
+      "text": "person, people, mutiple person, padding, blurry, border, margin, worst quality, multiple views, bad quality, low quality, lowres, displeasing, very displeasing, bad anatomy, bad hands, scan artifacts, monochrome, greyscale, signature, twitter username, jpeg artifacts, 2koma, 4koma, guro, extra digits, fewer digits, white background, simple background, blurry background, background poeple,",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "751": {
+    "inputs": {
+      "text": "masterpiece, best quality, highres, 8K, ultra detailed,\nraw background, detailed background, detailed scenery, \n",
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "752": {
+    "inputs": {
+      "scheduler": "exponential",
+      "steps": 40,
+      "denoise": 0.7,
+      "model": [
+        "1180",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "758": {
+    "inputs": {
+      "noise_seed": [
+        "759",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "759": {
+    "inputs": {
+      "expression": "a+2002",
+      "a": [
+        "1179",
+        3
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": "Math Expression 🐍"
+    }
+  },
+  "765": {
+    "inputs": {
+      "noise_mask": true,
+      "positive": [
+        "751",
+        0
+      ],
+      "negative": [
+        "750",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ],
+      "pixels": [
+        "1117",
+        0
+      ],
+      "mask": [
+        "772",
+        1
+      ]
+    },
+    "class_type": "InpaintModelConditioning",
+    "_meta": {
+      "title": "内补模型条件"
+    }
+  },
+  "772": {
+    "inputs": {
+      "model": "BiRefNet-HR-matting",
+      "mask_blur": 14,
+      "mask_offset": 20,
+      "invert_output": true,
+      "refine_foreground": false,
+      "background": "Color",
+      "background_color": "#000000",
+      "image": [
+        "1117",
+        0
+      ]
+    },
+    "class_type": "BiRefNetRMBG",
+    "_meta": {
+      "title": "BiRefNet 去除背景 (RMBG)"
+    }
+  },
+  "779": {
+    "inputs": {
+      "cfg": 4,
+      "model": [
+        "1180",
+        0
+      ],
+      "positive": [
+        "765",
+        0
+      ],
+      "negative": [
+        "765",
+        1
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器"
+    }
+  },
+  "793": {
+    "inputs": {
+      "cfg": 4,
+      "model": [
+        "384",
+        0
+      ],
+      "positive": [
+        "108",
+        0
+      ],
+      "negative": [
+        "108",
+        1
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器"
+    }
+  },
+  "794": {
+    "inputs": {
+      "cfg": 2,
+      "model": [
+        "1180",
+        0
+      ],
+      "positive": [
+        "158",
+        0
+      ],
+      "negative": [
+        "159",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器"
+    }
+  },
+  "795": {
+    "inputs": {
+      "cfg": 2,
+      "model": [
+        "1180",
+        0
+      ],
+      "positive": [
+        "261",
+        0
+      ],
+      "negative": [
+        "261",
+        1
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器"
+    }
+  },
+  "796": {
+    "inputs": {
+      "cfg": 2,
+      "model": [
+        "1180",
+        0
+      ],
+      "positive": [
+        "286",
+        0
+      ],
+      "negative": [
+        "286",
+        1
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器"
+    }
+  },
+  "938": {
+    "inputs": {
+      "padding": 0,
+      "blur": 0,
+      "mask": [
+        "647",
+        0
+      ]
+    },
+    "class_type": "MaskBoundingBox+",
+    "_meta": {
+      "title": "🔧 Mask Bounding Box"
+    }
+  },
+  "942": {
+    "inputs": {
+      "expression": "max(a+c-b, 0)",
+      "a": [
+        "626",
+        1
+      ],
+      "b": [
+        "650",
+        1
+      ],
+      "c": [
+        "739",
+        1
+      ]
+    },
+    "class_type": "MathExpression|pysssss",
+    "_meta": {
+      "title": " PadButton"
+    }
+  },
+  "944": {
+    "inputs": {
+      "left": 0,
+      "right": 0,
+      "top": 0,
+      "bottom": [
+        "942",
+        0
+      ],
+      "extra_padding": 0,
+      "pad_mode": "edge_pixel",
+      "color": "0, 0, 0",
+      "image": [
+        "1115",
+        0
+      ]
+    },
+    "class_type": "ImagePadKJ",
+    "_meta": {
+      "title": "ImagePad KJ"
+    }
+  },
+  "947": {
+    "inputs": {
+      "string_a": [
+        "45",
+        0
+      ],
+      "string_b": "close mouth,",
+      "delimiter": ","
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "连接"
+    }
+  },
+  "949": {
+    "inputs": {
+      "noise_seed": [
+        "327",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "950": {
+    "inputs": {
+      "noise": [
+        "949",
+        0
+      ],
+      "guider": [
+        "951",
+        0
+      ],
+      "sampler": [
+        "1063",
+        0
+      ],
+      "sigmas": [
+        "715",
+        0
+      ],
+      "latent_image": [
+        "76",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "951": {
+    "inputs": {
+      "cfg_max": 12,
+      "cfg_min": 1,
+      "model": [
+        "384",
+        0
+      ],
+      "positive": [
+        "61",
+        0
+      ],
+      "unconditional": [
+        "60",
+        0
+      ],
+      "sigmas": [
+        "715",
+        0
+      ]
+    },
+    "class_type": "ScheduledCFGGuider",
+    "_meta": {
+      "title": "ScheduledCFGGuider"
+    }
+  },
+  "1030": {
+    "inputs": {
+      "model_name": "bbox/hand_yolov8s.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "1031": {
+    "inputs": {
+      "blur_radius": 31,
+      "sigma": 10,
+      "image": [
+        "1032",
+        0
+      ]
+    },
+    "class_type": "ImageBlur",
+    "_meta": {
+      "title": "模糊图像"
+    }
+  },
+  "1032": {
+    "inputs": {
+      "mask": [
+        "1033",
+        0
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "1033": {
+    "inputs": {
+      "mask": [
+        "1213",
+        0
+      ]
+    },
+    "class_type": "MaskListToMaskBatch",
+    "_meta": {
+      "title": "Mask List to Mask Batch"
+    }
+  },
+  "1034": {
+    "inputs": {
+      "segs": [
+        "1196",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSToMaskList",
+    "_meta": {
+      "title": "SEGS to Mask List"
+    }
+  },
+  "1035": {
+    "inputs": {
+      "batch_index": [
+        "1039",
+        1
+      ],
+      "length": 1,
+      "image": [
+        "1031",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "从批次获取图像"
+    }
+  },
+  "1036": {
+    "inputs": {
+      "channel": "red",
+      "image": [
+        "1035",
+        0
+      ]
+    },
+    "class_type": "ImageToMask",
+    "_meta": {
+      "title": "图像转换为遮罩"
+    }
+  },
+  "1039": {
+    "inputs": {
+      "total": [
+        "1133",
+        0
+      ],
+      "initial_value1": [
+        "1102",
+        0
+      ]
+    },
+    "class_type": "logic forLoopStart",
+    "_meta": {
+      "title": "For Loop Start"
+    }
+  },
+  "1040": {
+    "inputs": {
+      "flow": [
+        "1039",
+        0
+      ],
+      "initial_value1": [
+        "1047",
+        0
+      ]
+    },
+    "class_type": "logic forLoopEnd",
+    "_meta": {
+      "title": "For Loop End"
+    }
+  },
+  "1041": {
+    "inputs": {
+      "segs": [
+        "1085",
+        0
+      ]
+    },
+    "class_type": "SegsToCombinedMask",
+    "_meta": {
+      "title": "SEGS to MASK (combined)"
+    }
+  },
+  "1042": {
+    "inputs": {
+      "threshold": 0.7,
+      "dilation": 10,
+      "crop_factor": 2,
+      "drop_size": 10,
+      "labels": "all",
+      "bbox_detector": [
+        "1030",
+        0
+      ],
+      "image": [
+        "1130",
+        0
+      ]
+    },
+    "class_type": "BboxDetectorSEGS",
+    "_meta": {
+      "title": "BBOX Detector (SEGS)"
+    }
+  },
+  "1043": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "1044": {
+    "inputs": {
+      "samples": [
+        "1056",
+        0
+      ],
+      "vae": [
+        "1043",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "1045": {
+    "inputs": {
+      "shift": 3,
+      "model": [
+        "1062",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "采样算法（AuraFlow）"
+    }
+  },
+  "1046": {
+    "inputs": {
+      "strength": 1,
+      "model": [
+        "1045",
+        0
+      ]
+    },
+    "class_type": "CFGNorm",
+    "_meta": {
+      "title": "CFG归一化"
+    }
+  },
+  "1047": {
+    "inputs": {
+      "stitcher": [
+        "1051",
+        0
+      ],
+      "inpainted_image": [
+        "1044",
+        0
+      ]
+    },
+    "class_type": "InpaintStitchImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Stitch"
+    }
+  },
+  "1048": {
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "1050": {
+    "inputs": {
+      "pixels": [
+        "1051",
+        1
+      ],
+      "vae": [
+        "1043",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "1051": {
+    "inputs": {
+      "downscale_algorithm": "bilinear",
+      "upscale_algorithm": "bicubic",
+      "preresize": false,
+      "preresize_mode": "ensure minimum resolution",
+      "preresize_min_width": 1024,
+      "preresize_min_height": 1024,
+      "preresize_max_width": 16384,
+      "preresize_max_height": 16384,
+      "mask_fill_holes": true,
+      "mask_expand_pixels": 32,
+      "mask_invert": false,
+      "mask_blend_pixels": 64,
+      "mask_hipass_filter": 0,
+      "extend_for_outpainting": false,
+      "extend_up_factor": 1,
+      "extend_down_factor": 1,
+      "extend_left_factor": 1,
+      "extend_right_factor": 1,
+      "context_from_mask_extend_factor": 2,
+      "output_resize_to_target_size": true,
+      "output_target_width": 1024,
+      "output_target_height": 1024,
+      "output_padding": "32",
+      "device_mode": "gpu (much faster)",
+      "image": [
+        "1039",
+        2
+      ],
+      "mask": [
+        "1036",
+        0
+      ]
+    },
+    "class_type": "InpaintCropImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Crop"
+    }
+  },
+  "1052": {
+    "inputs": {
+      "prompt": "Fix these hands and detail these hands in the image.",
+      "clip": [
+        "1048",
+        0
+      ],
+      "vae": [
+        "1043",
+        0
+      ],
+      "image1": [
+        "1051",
+        1
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "文本编码（QwenImageEditPlus）"
+    }
+  },
+  "1054": {
+    "inputs": {
+      "boolean": [
+        "1097",
+        0
+      ],
+      "on_true": [
+        "1040",
+        0
+      ],
+      "on_false": [
+        "1130",
+        0
+      ]
+    },
+    "class_type": "logic ifElse",
+    "_meta": {
+      "title": "If else"
+    }
+  },
+  "1056": {
+    "inputs": {
+      "seed": [
+        "1179",
+        3
+      ],
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "1046",
+        0
+      ],
+      "positive": [
+        "1052",
+        0
+      ],
+      "negative": [
+        "1175",
+        0
+      ],
+      "latent_image": [
+        "1050",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "1060": {
+    "inputs": {
+      "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "1061": {
+    "inputs": {
+      "lora_name": "qwen_edit\\Qwen-Image-Edit-Lightning-8steps-V1.0.safetensors",
+      "strength_model": 1,
+      "model": [
+        "1060",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "1062": {
+    "inputs": {
+      "lora_name": "qwen_edit\\Hand-Edit-Lora-v2.2-000005.safetensors",
+      "strength_model": 1,
+      "model": [
+        "1061",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  },
+  "1063": {
+    "inputs": {
+      "sampler_name": "deis"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "1064": {
+    "inputs": {
+      "seed": [
+        "353",
+        0
+      ],
+      "tile_width": 1024,
+      "tile_height": 1024,
+      "tiling_strategy": "padded",
+      "steps": 20,
+      "cfg": 2,
+      "sampler_name": "deis",
+      "scheduler": "exponential",
+      "denoise": 0.4,
+      "model": [
+        "1180",
+        0
+      ],
+      "positive": [
+        "1070",
+        0
+      ],
+      "negative": [
+        "254",
+        0
+      ],
+      "latent_image": [
+        "1065",
+        0
+      ]
+    },
+    "class_type": "BNK_TiledKSampler",
+    "_meta": {
+      "title": "Tiled KSampler"
+    }
+  },
+  "1065": {
+    "inputs": {
+      "pixels": [
+        "1069",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "1069": {
+    "inputs": {
+      "upscale_model": [
+        "243",
+        0
+      ],
+      "image": [
+        "1116",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "使用模型放大图像"
+    }
+  },
+  "1070": {
+    "inputs": {
+      "text": [
+        "947",
+        0
+      ],
+      "clip": [
+        "1180",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码 prompt"
+    }
+  },
+  "1078": {
+    "inputs": {
+      "samples": [
+        "1064",
+        0
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "1081": {
+    "inputs": {
+      "model_name": "segm/PitHandDetailer-v2-Test-v9c.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "1082": {
+    "inputs": {
+      "threshold": 0.7,
+      "dilation": 10,
+      "crop_factor": 2,
+      "drop_size": 10,
+      "labels": "all",
+      "segm_detector": [
+        "1081",
+        1
+      ],
+      "image": [
+        "1130",
+        0
+      ]
+    },
+    "class_type": "SegmDetectorSEGS",
+    "_meta": {
+      "title": "SEGM Detector (SEGS)"
+    }
+  },
+  "1084": {
+    "inputs": {
+      "segs1": [
+        "1082",
+        0
+      ],
+      "segs2": [
+        "1042",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSConcat",
+    "_meta": {
+      "title": "SEGS Concat"
+    }
+  },
+  "1085": {
+    "inputs": {
+      "iou_threshold": 0.3,
+      "segs": [
+        "1084",
+        0
+      ]
+    },
+    "class_type": "ImpactSEGSNMSFilter",
+    "_meta": {
+      "title": "SEGS Filter (non max suppression)"
+    }
+  },
+  "1090": {
+    "inputs": {
+      "boolean": [
+        "1096",
+        0
+      ],
+      "on_true": [
+        "722",
+        0
+      ],
+      "on_false": [
+        "1115",
+        0
+      ]
+    },
+    "class_type": "logic ifElse",
+    "_meta": {
+      "title": "If else"
+    }
+  },
+  "1095": {
+    "inputs": {
+      "continue": [
+        "1096",
+        0
+      ],
+      "in": [
+        "635",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1096": {
+    "inputs": {
+      "segs": [
+        "634",
+        0
+      ]
+    },
+    "class_type": "ImpactIsNotEmptySEGS",
+    "_meta": {
+      "title": "SEGS isn't Empty"
+    }
+  },
+  "1097": {
+    "inputs": {
+      "segs": [
+        "1085",
+        0
+      ]
+    },
+    "class_type": "ImpactIsNotEmptySEGS",
+    "_meta": {
+      "title": "SEGS isn't Empty"
+    }
+  },
+  "1100": {
+    "inputs": {
+      "boolean": [
+        "1101",
+        0
+      ],
+      "on_true": [
+        "190",
+        0
+      ],
+      "on_false": [
+        "1131",
+        0
+      ]
+    },
+    "class_type": "logic ifElse",
+    "_meta": {
+      "title": "If else"
+    }
+  },
+  "1101": {
+    "inputs": {
+      "segs": [
+        "1085",
+        0
+      ]
+    },
+    "class_type": "ImpactIsNotEmptySEGS",
+    "_meta": {
+      "title": "SEGS isn't Empty"
+    }
+  },
+  "1102": {
+    "inputs": {
+      "continue": [
+        "1097",
+        0
+      ],
+      "in": [
+        "1130",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1104": {
+    "inputs": {
+      "continue": [
+        "1101",
+        0
+      ],
+      "in": [
+        "1131",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1108": {
+    "inputs": {
+      "boolean": [
+        "1110",
+        0
+      ],
+      "on_true": [
+        "278",
+        0
+      ],
+      "on_false": [
+        "1135",
+        0
+      ]
+    },
+    "class_type": "logic ifElse",
+    "_meta": {
+      "title": "If else"
+    }
+  },
+  "1109": {
+    "inputs": {
+      "continue": [
+        "1110",
+        0
+      ],
+      "in": [
+        "1135",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1110": {
+    "inputs": {
+      "segs": [
+        "266",
+        0
+      ]
+    },
+    "class_type": "ImpactIsNotEmptySEGS",
+    "_meta": {
+      "title": "SEGS isn't Empty"
+    }
+  },
+  "1112": {
+    "inputs": {
+      "boolean": [
+        "1113",
+        0
+      ],
+      "on_true": [
+        "303",
+        0
+      ],
+      "on_false": [
+        "1108",
+        0
+      ]
+    },
+    "class_type": "logic ifElse",
+    "_meta": {
+      "title": "If else"
+    }
+  },
+  "1113": {
+    "inputs": {
+      "segs": [
+        "291",
+        0
+      ]
+    },
+    "class_type": "ImpactIsNotEmptySEGS",
+    "_meta": {
+      "title": "SEGS isn't Empty"
+    }
+  },
+  "1114": {
+    "inputs": {
+      "continue": [
+        "1113",
+        0
+      ],
+      "in": [
+        "1108",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1115": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "731",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1116": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "344",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1117": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "326",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1118": {
+    "inputs": {
+      "seed": [
+        "335",
+        0
+      ],
+      "steps": 40,
+      "cfg": 4,
+      "sampler_name": "deis",
+      "scheduler": "exponential",
+      "denoise": 0.4,
+      "model": [
+        "1180",
+        0
+      ],
+      "positive": [
+        "334",
+        0
+      ],
+      "negative": [
+        "333",
+        0
+      ],
+      "latent_image": [
+        "337",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "1120": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "746",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1124": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "1078",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1125": {
+    "inputs": {
+      "string_a": [
+        "947",
+        0
+      ],
+      "string_b": "close mouth,detail hands, detail face, detail hair, detail finger, detail teo,",
+      "delimiter": ","
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "连接"
+    }
+  },
+  "1130": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "112",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1131": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "1054",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1133": {
+    "inputs": {
+      "segs": [
+        "1196",
+        0
+      ]
+    },
+    "class_type": "ImpactCount_Elts_in_SEGS",
+    "_meta": {
+      "title": "Count Elts in SEGS"
+    }
+  },
+  "1135": {
+    "inputs": {
+      "continue": true,
+      "in": [
+        "1100",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1138": {
+    "inputs": {
+      "mask": [
+        "1041",
+        0
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "1175": {
+    "inputs": {
+      "conditioning": [
+        "1052",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "条件零化"
+    }
+  },
+  "1176": {
+    "inputs": {
+      "mask": [
+        "145",
+        2
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "1178": {
+    "inputs": {
+      "pixels": [
+        "145",
+        1
+      ],
+      "vae": [
+        "1180",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "1179": {
+    "inputs": {
+      "seed": 31456132
+    },
+    "class_type": "Seed",
+    "_meta": {
+      "title": "Seed"
+    }
+  },
+  "1180": {
+    "inputs": {
+      "ckpt_name": "waiIllustriousSDXL_v140.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "CheckpointLoaderSimple"
+    }
+  },
+  "1189": {
+    "inputs": {
+      "padding": 0,
+      "blur": 0,
+      "mask": [
+        "1095",
+        0
+      ]
+    },
+    "class_type": "MaskBoundingBox+",
+    "_meta": {
+      "title": "🔧 Mask Bounding Box"
+    }
+  },
+  "1192": {
+    "inputs": {
+      "mask": [
+        "1051",
+        2
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "1196": {
+    "inputs": {
+      "continue": [
+        "1097",
+        0
+      ],
+      "in": [
+        "1085",
+        0
+      ]
+    },
+    "class_type": "logic blocker",
+    "_meta": {
+      "title": "Blocker"
+    }
+  },
+  "1197": {
+    "inputs": {
+      "cfg": 7,
+      "model": [
+        "384",
+        0
+      ],
+      "positive": [
+        "61",
+        0
+      ],
+      "negative": [
+        "60",
+        0
+      ]
+    },
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG引导器"
+    }
+  },
+  "1206": {
+    "inputs": {
+      "mask": [
+        "145",
+        2
+      ]
+    },
+    "class_type": "MaskToImage",
+    "_meta": {
+      "title": "遮罩转换为图像"
+    }
+  },
+  "1210": {
+    "inputs": {
+      "iterations": 50,
+      "masks": [
+        "1034",
+        0
+      ]
+    },
+    "class_type": "Mask Dilate Region",
+    "_meta": {
+      "title": "Mask Dilate Region"
+    }
+  },
+  "1213": {
+    "inputs": {
+      "iterations": 40,
+      "masks": [
+        "1210",
+        0
+      ]
+    },
+    "class_type": "Mask Erode Region",
+    "_meta": {
+      "title": "Mask Erode Region"
+    }
+  }
+}
