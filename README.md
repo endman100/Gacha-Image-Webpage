@@ -6,6 +6,11 @@ This project is a front-end webpage for browsing LoRA data, editing scene prompt
 
 https://endman100.github.io/Gacha-Image-Webpage/
 
+or
+
+python -m http.server -port 8000 
+http://localhost:8000
+
 ## How to Use
 
 Step 1: Access the Webpage

@@ -50,6 +50,68 @@ function buildRunpodErrorDetails(error) {
     };
 }
 
+const hfUploadQueue = [];
+let hfUploadInFlight = false;
+
+function getHfUploadKey(item) {
+    return `${item?.repo?.type || ''}:${item?.repo?.name || ''}:${item?.accessToken || ''}`;
+}
+
+function buildHfBatchCommitTitle(items) {
+    const baseTitle = items?.[0]?.commitTitle || 'Upload workflow results';
+    if (items.length <= 1) {
+        return baseTitle;
+    }
+    return `${baseTitle} (+${items.length - 1} more)`;
+}
+
+async function drainHfUploadQueue() {
+    if (hfUploadInFlight || hfUploadQueue.length === 0) {
+        return;
+    }
+
+    hfUploadInFlight = true;
+    const baseKey = getHfUploadKey(hfUploadQueue[0]);
+    const batch = [];
+    const remaining = [];
+
+    for (const item of hfUploadQueue) {
+        if (getHfUploadKey(item) === baseKey) {
+            batch.push(item);
+        } else {
+            remaining.push(item);
+        }
+    }
+
+    hfUploadQueue.length = 0;
+    hfUploadQueue.push(...remaining);
+
+    try {
+        const first = batch[0];
+        await first.hub.uploadFiles({
+            repo: first.repo,
+            accessToken: first.accessToken,
+            files: batch.map(item => item.file),
+            commitTitle: buildHfBatchCommitTitle(batch)
+        });
+        batch.forEach(item => item.resolve());
+    } catch (error) {
+        batch.forEach(item => item.reject(error));
+    } finally {
+        hfUploadInFlight = false;
+        if (hfUploadQueue.length > 0) {
+            void drainHfUploadQueue();
+        }
+    }
+}
+
+function enqueueHfUpload(item) {
+    return new Promise((resolve, reject) => {
+        hfUploadQueue.push({ ...item, resolve, reject });
+        void drainHfUploadQueue();
+    });
+}
+
 function logRunpodFailure(context, error, details = {}) {
     const payload = {
         context,
@@ -245,15 +307,14 @@ async function runWorkflowWithRunpod(loraName) {
             const extension = detectImageExtension(imageBlob.type, imageSrc);
             const fileName = `${loraName}-${round}-${Date.now()}.${extension}`;
 
-            await hub.uploadFiles({
+            await enqueueHfUpload({
+                hub,
                 repo,
                 accessToken: hfToken,
-                files: [
-                    {
-                        path: `${uploadPath}/${fileName}`,
-                        content: imageBlob
-                    }
-                ],
+                file: {
+                    path: `${uploadPath}/${fileName}`,
+                    content: imageBlob
+                },
                 commitTitle: `Upload workflow result ${round}/${totalRounds} for ${loraName}`
             });
 
@@ -435,22 +496,34 @@ async function fetchGeneratedImageBlob(imageSrc) {
         return base64Blob;
     }
 
-    try {
-        const response = await fetch(imageSrc);
-        if (!response.ok) {
-            throw new Error(`Failed to download generated image (HTTP ${response.status})`);
-        }
-        return await response.blob();
-    } catch (error) {
-        const isCorsLike = error instanceof TypeError
-            || /Failed to fetch|CORS|Access-Control-Allow-Origin/i.test(String(error?.message || ''));
+    const maxRetries = 5;
+    const retryDelayMs = 1200;
+    let lastError = null;
 
-        if (isCorsLike) {
-            throw new Error('Download blocked by browser CORS (S3/CloudFront does not allow this origin). Configure Access-Control-Allow-Origin on the source.');
-        }
+    for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
+        try {
+            const response = await fetch(imageSrc);
+            if (!response.ok) {
+                throw new Error(`Failed to download generated image (HTTP ${response.status})`);
+            }
+            return await response.blob();
+        } catch (error) {
+            lastError = error;
+            const isCorsLike = error instanceof TypeError
+                || /Failed to fetch|CORS|Access-Control-Allow-Origin/i.test(String(error?.message || ''));
 
-        throw error;
+            if (attempt >= maxRetries) {
+                if (isCorsLike) {
+                    throw new Error('Download blocked by browser CORS (S3/CloudFront does not allow this origin). Configure Access-Control-Allow-Origin on the source.');
+                }
+                throw error;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        }
     }
+
+    throw lastError || new Error('Failed to download generated image.');
 }
 
 function tryBuildBlobFromBase64(imageSrc) {
@@ -575,11 +648,21 @@ async function pollRunpodResult(endpointId, jobId, runpodToken, onProgress) {
             throw new Error('Runpod job timed out');
         }
 
-        const statusRes = await fetch(`https://api.runpod.ai/v2/${endpointId}/status/${jobId}`, {
-            headers: {
-                'Authorization': `Bearer ${runpodToken}`
-            }
-        });
+        let statusRes = null;
+        try {
+            statusRes = await fetch(`https://api.runpod.ai/v2/${endpointId}/status/${jobId}`, {
+                headers: {
+                    'Authorization': `Bearer ${runpodToken}`
+                }
+            });
+        } catch (error) {
+            logRunpodFailure('status-request-error', error, {
+                endpointId,
+                jobId
+            });
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            continue;
+        }
 
         if (!statusRes.ok) {
             const err = await statusRes.text();
@@ -589,10 +672,21 @@ async function pollRunpodResult(endpointId, jobId, runpodToken, onProgress) {
                 httpStatus: statusRes.status,
                 responseText: err
             });
-            throw new Error(`Status query failed (HTTP ${statusRes.status}): ${err}`);
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            continue;
         }
 
-        const statusData = await statusRes.json();
+        let statusData = null;
+        try {
+            statusData = await statusRes.json();
+        } catch (error) {
+            logRunpodFailure('status-parse-failed', error, {
+                endpointId,
+                jobId
+            });
+            await new Promise(resolve => setTimeout(resolve, intervalMs));
+            continue;
+        }
         const status = statusData.status;
 
         if (status !== lastStatus) {

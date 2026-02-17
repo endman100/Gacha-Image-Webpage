@@ -29,6 +29,7 @@ const loadedTargetFolderImagePaths = {};
 const targetFolderImageCache = {};
 const targetFolderSortOrder = {};
 const loraFeatureCache = {};
+let lightboxState = { images: [], index: 0 };
 
 searchBtn.addEventListener('click', searchLoRAFiles);
 unlockPasswordInput.addEventListener('keypress', (e) => {
@@ -41,6 +42,7 @@ unlockPasswordInput.addEventListener('input', () => {
 });
 
 backBtn.addEventListener('click', backToMainView);
+setupTargetFolderImageZoom();
 
 const hasSavedUnlockPassword = restoreUnlockPasswordFromCookie();
 if (hasSavedUnlockPassword) {
@@ -674,6 +676,8 @@ function renderTargetFolderImages(loraName) {
         return;
     }
 
+    container.dataset.loraName = loraName;
+
     const imagesMap = targetFolderImageCache[loraName] || {};
     const imageList = Object.values(imagesMap);
 
@@ -705,6 +709,293 @@ function renderTargetFolderImages(loraName) {
         .join('');
 }
 
+function setupTargetFolderImageZoom() {
+    document.addEventListener('click', (event) => {
+        console.log('[zoom] click target:', event.target);
+        const clickedTile = event.target.closest('.target-folder-item');
+        if (!clickedTile) {
+            console.log('[zoom] no target-folder image found for this click');
+            return;
+        }
+
+        const clickedImage = clickedTile.querySelector('img');
+        const container = clickedTile.closest('#targetFolderImages');
+        const fallbackName = detailTitle ? detailTitle.textContent : '';
+        const loraName = container && container.dataset.loraName
+            ? container.dataset.loraName
+            : (fallbackName || '').trim();
+        const domKey = clickedTile.dataset.imgKey || '';
+
+        console.log('[zoom] open lightbox for:', clickedImage ? clickedImage.src : '(loading)');
+        openImageLightbox({
+            src: clickedImage ? clickedImage.src : '',
+            altText: clickedImage ? clickedImage.alt || '' : '',
+            loraName,
+            domKey
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (!isLightboxActive()) {
+            return;
+        }
+
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            navigateLightbox(-1);
+        }
+
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            navigateLightbox(1);
+        }
+    });
+}
+
+function isLightboxActive() {
+    const lightbox = document.querySelector('.image-lightbox');
+    return Boolean(lightbox && lightbox.classList.contains('is-active'));
+}
+
+function getTargetFolderImageList(loraName) {
+    let resolvedName = loraName;
+    if (!resolvedName) {
+        const container = document.getElementById('targetFolderImages');
+        resolvedName = container && container.dataset.loraName ? container.dataset.loraName : '';
+    }
+
+    if (resolvedName && targetFolderImageCache[resolvedName]) {
+        const imagesMap = targetFolderImageCache[resolvedName] || {};
+        const imageList = Object.values(imagesMap);
+
+        imageList.sort(compareImageName);
+        if (targetFolderSortOrder[resolvedName] === 'desc') {
+            imageList.reverse();
+        }
+
+        return imageList.map(item => ({
+            src: item.objectUrl || '',
+            alt: item.fileName || '',
+            status: item.status || (item.objectUrl ? 'loaded' : 'loading'),
+            domKey: item.domKey || makeImageDomKey(item.path)
+        }));
+    }
+
+    const tiles = document.querySelectorAll('#targetFolderImages .target-folder-item');
+    return Array.from(tiles).map(tile => {
+        const img = tile.querySelector('img');
+        return {
+            src: img ? img.src : '',
+            alt: img ? img.alt || '' : '',
+            status: img ? 'loaded' : 'loading',
+            domKey: tile.dataset.imgKey || ''
+        };
+    });
+}
+
+function ensureImageLightbox() {
+    let lightbox = document.querySelector('.image-lightbox');
+    if (lightbox) {
+        return lightbox;
+    }
+
+    lightbox = document.createElement('div');
+    lightbox.className = 'image-lightbox';
+    lightbox.innerHTML = `
+        <button class="lightbox-nav lightbox-prev" type="button" aria-label="Previous image">&lt;</button>
+        <img class="lightbox-main" src="" alt="">
+        <div class="lightbox-loading" aria-live="polite">
+            <div class="mini-spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
+        <button class="lightbox-nav lightbox-next" type="button" aria-label="Next image">&gt;</button>
+        <div class="lightbox-thumbs" aria-label="Thumbnail list"></div>
+    `;
+    lightbox.addEventListener('click', (event) => {
+        if (event.target === lightbox) {
+            closeImageLightbox();
+        }
+    });
+
+    const prevBtn = lightbox.querySelector('.lightbox-prev');
+    const nextBtn = lightbox.querySelector('.lightbox-next');
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            navigateLightbox(-1);
+        });
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            navigateLightbox(1);
+        });
+    }
+
+    document.body.appendChild(lightbox);
+    return lightbox;
+}
+
+function openImageLightbox({ src, altText, loraName, domKey }) {
+    const lightbox = ensureImageLightbox();
+    const images = getTargetFolderImageList(loraName);
+    let index = -1;
+
+    if (domKey) {
+        index = images.findIndex(item => item.domKey === domKey);
+    }
+
+    if (index < 0 && src) {
+        index = images.findIndex(item => item.src === src);
+    }
+
+    if (index < 0) {
+        index = 0;
+    }
+
+    if (!images.length) {
+        images.push({
+            src: src || '',
+            alt: altText || '',
+            status: 'loading',
+            domKey: domKey || ''
+        });
+        index = 0;
+    }
+
+    lightboxState = {
+        images,
+        index
+    };
+
+    updateLightboxMainDisplay();
+    renderLightboxThumbnails();
+    updateLightboxNavState();
+    lightbox.classList.add('is-active');
+    document.body.classList.add('no-scroll');
+}
+
+function navigateLightbox(direction) {
+    if (!lightboxState.images.length) {
+        return;
+    }
+
+    const total = lightboxState.images.length;
+    const nextIndex = (lightboxState.index + direction + total) % total;
+    lightboxState.index = nextIndex;
+
+    const lightbox = document.querySelector('.image-lightbox');
+    if (lightbox) {
+        updateLightboxMainDisplay();
+    }
+
+    renderLightboxThumbnails();
+    updateLightboxNavState();
+}
+
+function updateLightboxMainDisplay() {
+    const lightbox = document.querySelector('.image-lightbox');
+    if (!lightbox) {
+        return;
+    }
+
+    const image = lightbox.querySelector('.lightbox-main');
+    const loading = lightbox.querySelector('.lightbox-loading');
+    const activeImage = lightboxState.images[lightboxState.index];
+    const isLoaded = Boolean(activeImage && activeImage.status === 'loaded' && activeImage.src);
+
+    if (image) {
+        if (isLoaded) {
+            image.src = activeImage.src;
+            image.alt = activeImage.alt || '';
+            image.style.visibility = 'visible';
+        } else {
+            image.removeAttribute('src');
+            image.alt = activeImage ? activeImage.alt || '' : '';
+            image.style.visibility = 'hidden';
+        }
+    }
+
+    if (loading) {
+        loading.classList.toggle('is-visible', !isLoaded);
+    }
+}
+
+function renderLightboxThumbnails() {
+    const lightbox = document.querySelector('.image-lightbox');
+    if (!lightbox) {
+        return;
+    }
+
+    const thumbContainer = lightbox.querySelector('.lightbox-thumbs');
+    if (!thumbContainer) {
+        return;
+    }
+
+    if (!lightboxState.images.length) {
+        thumbContainer.innerHTML = '';
+        return;
+    }
+
+    thumbContainer.innerHTML = lightboxState.images
+        .map((item, idx) => {
+            const isActive = idx === lightboxState.index ? 'is-active' : '';
+            const isLoading = !item.src || item.status !== 'loaded';
+            return `
+                <button class="lightbox-thumb ${isActive} ${isLoading ? 'is-loading' : ''}" type="button" data-thumb-index="${idx}" aria-label="Image ${idx + 1}">
+                    ${isLoading
+                        ? '<div class="lightbox-thumb-loading"><div class="mini-spinner"></div></div>'
+                        : `<img src="${item.src}" alt="${escapeHtml(item.alt || '')}">`
+                    }
+                </button>
+            `;
+        })
+        .join('');
+
+    thumbContainer.querySelectorAll('.lightbox-thumb').forEach(button => {
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const index = Number(button.dataset.thumbIndex || 0);
+            if (Number.isNaN(index)) {
+                return;
+            }
+            lightboxState.index = index;
+            navigateLightbox(0);
+        });
+    });
+}
+
+function updateLightboxNavState() {
+    const lightbox = document.querySelector('.image-lightbox');
+    if (!lightbox) {
+        return;
+    }
+
+    const prevBtn = lightbox.querySelector('.lightbox-prev');
+    const nextBtn = lightbox.querySelector('.lightbox-next');
+    const isSingle = lightboxState.images.length <= 1;
+
+    if (prevBtn) {
+        prevBtn.disabled = isSingle;
+    }
+
+    if (nextBtn) {
+        nextBtn.disabled = isSingle;
+    }
+}
+
+function closeImageLightbox() {
+    const lightbox = document.querySelector('.image-lightbox');
+    if (!lightbox) {
+        return;
+    }
+
+    lightbox.classList.remove('is-active');
+    document.body.classList.remove('no-scroll');
+}
+
 function makeImageDomKey(path) {
     try {
         return encodeURIComponent(path || '');
@@ -727,15 +1018,33 @@ function updateTargetFolderImageTile(loraName, entry) {
 
     if (entry.status === 'loaded' && entry.objectUrl) {
         tile.innerHTML = `<img src="${entry.objectUrl}" alt="${escapeHtml(entry.fileName)}">`;
-        return;
-    }
-
-    if (entry.status === 'error') {
+    } else if (entry.status === 'error') {
         tile.innerHTML = `<div class="target-folder-loading is-error">Load failed</div>`;
+    } else {
+        tile.innerHTML = `<div class="target-folder-loading"><div class="mini-spinner"></div><div class="loading-text">Loading...</div></div>`;
+    }
+
+    if (!isLightboxActive()) {
         return;
     }
 
-    tile.innerHTML = `<div class="target-folder-loading"><div class="mini-spinner"></div><div class="loading-text">Loading...</div></div>`;
+    const matchIndex = lightboxState.images.findIndex(item => item.domKey === domKey);
+    if (matchIndex < 0) {
+        return;
+    }
+
+    lightboxState.images[matchIndex] = {
+        src: entry.objectUrl || '',
+        alt: entry.fileName || '',
+        status: entry.status || (entry.objectUrl ? 'loaded' : 'loading'),
+        domKey
+    };
+
+    if (matchIndex === lightboxState.index) {
+        updateLightboxMainDisplay();
+    }
+
+    renderLightboxThumbnails();
 }
 
 function backToMainView() {
