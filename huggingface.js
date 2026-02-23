@@ -701,51 +701,6 @@ function enqueueUrlImageDownload({ key, url, headers, shouldContinue, onStarted,
     return promise;
 }
 
-function extractHfTreeItemTimestampMs(item) {
-    if (!item || typeof item !== 'object') {
-        return 0;
-    }
-
-    const candidates = [
-        item.lastCommitDate,
-        item.last_commit_date,
-        item.lastModified,
-        item.last_modified,
-        item.updatedAt,
-        item.updated_at,
-        item.createdAt,
-        item.created_at,
-        item.commitDate,
-        item.commit_date,
-        item.date
-    ];
-
-    for (const value of candidates) {
-        if (!value) {
-            continue;
-        }
-
-        if (typeof value === 'number' && Number.isFinite(value)) {
-            // Some APIs return seconds; others ms.
-            return value > 10_000_000_000 ? value : value * 1000;
-        }
-
-        if (typeof value === 'string') {
-            const parsed = Date.parse(value);
-            if (Number.isFinite(parsed)) {
-                return parsed;
-            }
-        }
-    }
-
-    // Some HF responses nest commit info.
-    const nested = item.lastCommit || item.last_commit || item.commit || null;
-    if (nested && typeof nested === 'object') {
-        return extractHfTreeItemTimestampMs(nested);
-    }
-
-    return 0;
-}
 
 async function fetchLoRAFiles(token) {
     const repo = 'Gazai-ai/Gacha-LoRA';
@@ -762,16 +717,66 @@ async function fetchLoRAFiles(token) {
             hiddenLoraNames = new Set();
         }
 
-        // Access files in the lora folder
-        const treeUrl = `https://huggingface.co/api/models/${repo}/tree/main/lora`;
+        // Access files in the lora folder.
+        // NOTE: HF tree API does not always include commit timestamps unless requested via `expand`.
+        // If timestamps are missing, `latestTimestampMs` will be 0 and sorting falls back to name.
+        const baseTreeUrl = `https://huggingface.co/api/models/${repo}/tree/main/lora`;
+        const expands = [
+            'lastCommitDate',
+            'last_commit_date',
+            'lastModified',
+            'last_modified',
+            'lastCommit',
+            'last_commit',
+            'commit'
+        ];
 
-        const response = await fetch(treeUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
+        const buildExpandedUrl = (paramName) => {
+            try {
+                const url = new URL(baseTreeUrl);
+                expands.forEach(value => url.searchParams.append(paramName, value));
+                return url.toString();
+            } catch (_) {
+                return '';
             }
-        });
+        };
+
+        // HF uses different query formats across deployments; try both.
+        const treeUrlExpand = buildExpandedUrl('expand');
+        const treeUrlExpandArray = buildExpandedUrl('expand[]');
+
+        const fetchTree = async (url) => {
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            return res;
+        };
+
+        let response = null;
+        const candidateUrls = [treeUrlExpand, treeUrlExpandArray, baseTreeUrl].filter(Boolean);
+        for (const url of candidateUrls) {
+            const res = await fetchTree(url);
+            response = res;
+            if (res.ok) {
+                break;
+            }
+
+            // If parameters are rejected, continue to the next candidate.
+            if (res.status === 400 || res.status === 404) {
+                continue;
+            }
+
+            // For auth/other errors, stop early and report normally.
+            break;
+        }
+
+        if (!response) {
+            throw new Error('API error: no response from Hugging Face tree API');
+        }
 
         if (!response.ok) {
             if (response.status === 401) {
@@ -785,38 +790,27 @@ async function fetchLoRAFiles(token) {
 
         const data = await response.json();
 
-        // Group files by LoRA name
+        // 只用名稱分組，不處理時間戳
         const loraGrouped = {};
-
         if (Array.isArray(data)) {
             data.forEach(item => {
                 if (item.type === 'file' && item.path) {
                     const fileName = item.path.split('/').pop();
                     // Extract LoRA name (remove extension and version)
                     const loraName = extractLoRAName(fileName);
-
                     if (!loraGrouped[loraName]) {
                         loraGrouped[loraName] = {
                             name: loraName,
                             files: [],
                             image: null,
-                            safetensors: null,
-                            latestTimestampMs: 0
+                            safetensors: null
                         };
                     }
-
                     loraGrouped[loraName].files.push(item);
-
-                    const itemTimestampMs = extractHfTreeItemTimestampMs(item);
-                    if (itemTimestampMs > (loraGrouped[loraName].latestTimestampMs || 0)) {
-                        loraGrouped[loraName].latestTimestampMs = itemTimestampMs;
-                    }
-
                     // Find image
                     if (/\.(png|jpg|jpeg|webp)$/i.test(fileName)) {
                         loraGrouped[loraName].image = item;
                     }
-
                     // Find safetensors file
                     if (fileName.endsWith('.safetensors')) {
                         loraGrouped[loraName].safetensors = item;

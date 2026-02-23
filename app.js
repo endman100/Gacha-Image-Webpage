@@ -338,26 +338,14 @@ async function searchLoRAFiles() {
     }
 }
 
-function getLoraTimestampMs(lora) {
-    const value = lora?.latestTimestampMs;
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value;
-    }
-    return 0;
-}
-
-function compareLoraByTime(a, b) {
-    const ta = getLoraTimestampMs(a);
-    const tb = getLoraTimestampMs(b);
-    if (ta !== tb) {
-        return ta - tb;
-    }
+// 只用名稱排序
+function compareLoraByName(a, b) {
     return String(a?.name || '').localeCompare(String(b?.name || ''), undefined, { sensitivity: 'base' });
 }
 
 function getSortedLoraList(list) {
     const copy = Array.isArray(list) ? [...list] : [];
-    copy.sort(compareLoraByTime);
+    copy.sort(compareLoraByName);
     if (loraCardSortOrder === 'desc') {
         copy.reverse();
     }
@@ -369,10 +357,10 @@ function updateLoraSortButtonText() {
         return;
     }
 
-    // desc = newest first
+    // desc = Z→A
     sortLoraBtn.textContent = loraCardSortOrder === 'asc'
-        ? 'Sort: Oldest'
-        : 'Sort: Newest';
+        ? 'Sort: A→Z'
+        : 'Sort: Z→A';
 }
 
 
