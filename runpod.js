@@ -142,11 +142,12 @@ async function runWorkflowWithRunpod(loraName) {
 
     const generalJobs = collectPromptJobsFromSceneTableBody(document.getElementById('generalScenesTbody'));
     const characterJobs = collectPromptJobsFromSceneTableBody(document.getElementById('characterScenesTbody'));
-    const baseJobs = [...generalJobs, ...characterJobs];
+    let baseJobs = [...generalJobs, ...characterJobs];
 
+    // Allow generating even when the user does not provide any prompt.
+    // In this case we will run a single job with an empty prompt (repeat by `times`).
     if (baseJobs.length === 0) {
-        showRunpodStatus('Please enter at least one prompt in General/Character-Specific scenes.', 'error');
-        return;
+        baseJobs = [{ prompt: '', keepClothes: false }];
     }
 
     const totalRounds = baseJobs.length * times;
@@ -187,7 +188,7 @@ async function runWorkflowWithRunpod(loraName) {
     }
 
     try {
-        const endpointId = 'vvknohtwuum3te';
+        const endpointId = 'tj36t6j8wpuj69';
         const runpodToken = privateTokenData.runpod;
         const hfToken = resolvedHfToken;
         const maxThreads = Math.min(5, totalRounds);
@@ -200,6 +201,8 @@ async function runWorkflowWithRunpod(loraName) {
         const uploadPath = `image/${loraName}`;
         const hub = await getHfHubModule();
         const repo = { type: 'model', name: repoId };
+
+        let firstSerialNumber = 1;
 
         let nextRound = 1;
         let runningCount = 0;
@@ -226,6 +229,24 @@ async function runWorkflowWithRunpod(loraName) {
                 `Progress ${finishedCount}/${totalRounds} (success ${uploadedCount}, failed ${failedCount}, running ${runningCount}, waiting ${waitingCount})`,
                 type
             );
+        }
+
+        renderProgress('Checking last image serial number...');
+        firstSerialNumber = await getNextImageSerialNumber({
+            repoId,
+            token: hfToken,
+            folderPath: uploadPath,
+            loraName
+        });
+        renderProgress(`Next image serial number: ${String(firstSerialNumber).padStart(6, '0')}`);
+
+        if (progressUI && typeof progressUI.setRoundFileName === 'function') {
+            for (let round = 1; round <= totalRounds; round += 1) {
+                const serialNumber = firstSerialNumber + (round - 1);
+                const serialText = String(serialNumber).padStart(6, '0');
+                // Default to .png until we know the real mime/extension.
+                progressUI.setRoundFileName(round, `${loraName}-${serialText}.png`);
+            }
         }
 
         async function runSingleRound(round, job) {
@@ -305,7 +326,21 @@ async function runWorkflowWithRunpod(loraName) {
             }
             const imageBlob = await fetchGeneratedImageBlob(imageSrc);
             const extension = detectImageExtension(imageBlob.type, imageSrc);
-            const fileName = `${loraName}-${round}-${Date.now()}.${extension}`;
+            const serialNumber = firstSerialNumber + (round - 1);
+
+            if (!Number.isFinite(serialNumber) || serialNumber < 1) {
+                throw new Error(`Invalid serial number: ${serialNumber}`);
+            }
+            if (serialNumber > 999999) {
+                throw new Error(`Serial number exceeded 6 digits: ${serialNumber}`);
+            }
+
+            const serialText = String(serialNumber).padStart(6, '0');
+            const fileName = `${loraName}-${serialText}.${extension}`;
+
+            if (progressUI && typeof progressUI.setRoundFileName === 'function') {
+                progressUI.setRoundFileName(round, fileName);
+            }
 
             await enqueueHfUpload({
                 hub,
@@ -324,7 +359,7 @@ async function runWorkflowWithRunpod(loraName) {
                 progressUI.setRoundState(round, 'done', 'Done');
             }
 
-            await loadTargetFolderImages(loraName, hfToken, { reset: false });
+            await loadTargetFolderImages(loraName, hfToken, { reset: false, background: true });
         }
 
         async function worker() {
@@ -424,7 +459,7 @@ function createRunpodProgressUI(times) {
         rowEl.append(labelEl, barEl, stateEl);
         listEl.appendChild(rowEl);
 
-        return { fillEl, stateEl, rowEl };
+        return { fillEl, stateEl, rowEl, labelEl, round, fileName: '' };
     });
 
     runpodStatus.innerHTML = '';
@@ -460,7 +495,30 @@ function createRunpodProgressUI(times) {
         item.fillEl.className = `runpod-progress-fill ${meta.cls}`;
         item.fillEl.style.width = `${meta.percent}%`;
         item.stateEl.textContent = meta.label;
-        item.rowEl.title = detail ? String(detail) : '';
+        const titleParts = [];
+        if (item.fileName) {
+            titleParts.push(item.fileName);
+        }
+        if (detail) {
+            titleParts.push(String(detail));
+        }
+        item.rowEl.title = titleParts.join('\n');
+    }
+
+    function setRoundFileName(round, fileName) {
+        const item = roundEls[round - 1];
+        if (!item) {
+            return;
+        }
+
+        const safeName = String(fileName || '').trim();
+        item.fileName = safeName;
+
+        if (safeName) {
+            item.labelEl.textContent = `${round}: ${safeName}`;
+        } else {
+            item.labelEl.textContent = String(round);
+        }
     }
 
     function setRoundRunningProgress(round, progress) {
@@ -486,6 +544,7 @@ function createRunpodProgressUI(times) {
         setType,
         setSummary,
         setRoundState,
+        setRoundFileName,
         setRoundRunningProgress
     };
 }
@@ -635,6 +694,80 @@ function detectImageExtension(mimeType, imageSrc) {
     }
 
     return 'png';
+}
+
+function extractSixDigitSerialFromFileName(fileName) {
+    const baseName = String(fileName || '').replace(/\.[^.]+$/, '');
+    const match = baseName.match(/(\d{1,6})$/);
+    if (!match) {
+        return null;
+    }
+
+    const parsed = Number(match[1]);
+    if (!Number.isFinite(parsed)) {
+        return null;
+    }
+
+    return parsed;
+}
+
+async function getNextImageSerialNumber({ repoId, token, folderPath, loraName }) {
+    const safeRepoId = String(repoId || '').trim();
+    const safeFolderPath = String(folderPath || '').trim().replace(/^\/+/, '');
+    const safeToken = String(token || '').trim();
+
+    if (!safeRepoId || !safeFolderPath || !safeToken) {
+        throw new Error('Missing repoId/folderPath/token when checking the last image serial number.');
+    }
+
+    const treeUrl = `https://huggingface.co/api/models/${safeRepoId}/tree/main/${encodeURI(safeFolderPath)}`;
+    const treeRes = await fetch(treeUrl, {
+        headers: {
+            'Authorization': `Bearer ${safeToken}`,
+            'Accept': 'application/json'
+        }
+    });
+
+    if (treeRes.status === 404) {
+        return 1;
+    }
+    if (!treeRes.ok) {
+        const errorText = await treeRes.text().catch(() => '');
+        throw new Error(`Failed to read target folder images for serial number (HTTP ${treeRes.status})${errorText ? `: ${errorText}` : ''}`);
+    }
+
+    const data = await treeRes.json();
+    const items = Array.isArray(data) ? data : [];
+    let maxSerial = 0;
+
+    for (const item of items) {
+        if (!item || item.type !== 'file' || typeof item.path !== 'string') {
+            continue;
+        }
+
+        const fileName = item.path.split('/').pop() || '';
+        if (!/\.(png|jpg|jpeg|webp)$/i.test(fileName)) {
+            continue;
+        }
+
+        const serial = extractSixDigitSerialFromFileName(fileName);
+        if (serial == null) {
+            continue;
+        }
+
+        // If there are legacy non-matching filenames, ignore them and only follow the 6-digit serial convention.
+        if (serial > maxSerial) {
+            maxSerial = serial;
+        }
+    }
+
+    const nextSerial = maxSerial + 1;
+    if (nextSerial > 999999) {
+        const label = loraName ? ` (${String(loraName)})` : '';
+        throw new Error(`Next serial number exceeds 6 digits${label}: ${nextSerial}`);
+    }
+
+    return nextSerial;
 }
 
 async function pollRunpodResult(endpointId, jobId, runpodToken, onProgress) {

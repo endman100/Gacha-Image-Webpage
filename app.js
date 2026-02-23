@@ -6,6 +6,7 @@ const results = document.getElementById('results');
 const loading = document.getElementById('loading');
 const gallery = document.getElementById('gallery');
 const galleryContainer = document.getElementById('gallery-container');
+const sortLoraBtn = document.getElementById('sortLoraBtn');
 const errorMessage = document.getElementById('error-message');
 const successMessage = document.getElementById('success-message');
 const detailTitle = document.getElementById('detailTitle');
@@ -25,13 +26,140 @@ let allLoRAData = {}; // Store all LoRA data
 let privateTokenData = null;
 let workflowData = null;
 let resolvedHfToken = '';
+let currentLoraList = [];
+let loraCardSortOrder = 'desc';
 const loadedTargetFolderImagePaths = {};
 const targetFolderImageCache = {};
 const targetFolderSortOrder = {};
 const loraFeatureCache = {};
+const loraCardImageCache = {};
 let lightboxState = { images: [], index: 0 };
 
+let loraCardLoadGeneration = 0;
+
+function getLoraCardDownloadKey(loraName, imageUrl) {
+    return `${String(loraName || '')}::${String(imageUrl || '')}`;
+}
+
+function clearLoraCardPreviewImagesAndCache() {
+    loraCardLoadGeneration += 1;
+
+    Object.values(loraCardImageCache).forEach(entry => {
+        if (entry?.objectUrl) {
+            try {
+                URL.revokeObjectURL(entry.objectUrl);
+            } catch (_) {
+            }
+        }
+    });
+    Object.keys(loraCardImageCache).forEach(key => delete loraCardImageCache[key]);
+
+    document.querySelectorAll('.lora-block').forEach(block => {
+        block.querySelectorAll('img.lora-image').forEach(img => img.remove());
+        block.querySelectorAll('.no-image').forEach(el => el.remove());
+        delete block.dataset.imageLoading;
+    });
+}
+
+function clearAllResultImagesCacheAndUrls() {
+    // Invalidate in-flight downloads and disconnect observers.
+    const loraNames = new Set([
+        ...Object.keys(targetFolderImageCache || {}),
+        ...Object.keys(loadedTargetFolderImagePaths || {})
+    ]);
+
+    loraNames.forEach(name => {
+        if (typeof targetFolderLoadGeneration === 'object' && targetFolderLoadGeneration) {
+            targetFolderLoadGeneration[name] = (targetFolderLoadGeneration[name] || 0) + 1;
+        }
+
+        if (typeof disconnectTargetFolderLazyObserver === 'function') {
+            disconnectTargetFolderLazyObserver(name);
+        }
+    });
+
+    // NOTE: Do NOT clear the shared download queue/map here.
+    // LoRA card previews and result images share the same queue now.
+
+    Object.values(targetFolderImageCache).forEach(imagesMap => {
+        if (!imagesMap || typeof imagesMap !== 'object') {
+            return;
+        }
+        Object.values(imagesMap).forEach(entry => {
+            if (entry?.objectUrl) {
+                try {
+                    URL.revokeObjectURL(entry.objectUrl);
+                } catch (_) {
+                }
+            }
+        });
+    });
+
+    Object.keys(targetFolderImageCache).forEach(key => delete targetFolderImageCache[key]);
+
+    Object.keys(loadedTargetFolderImagePaths).forEach(key => {
+        const set = loadedTargetFolderImagePaths[key];
+        if (set && typeof set.clear === 'function') {
+            set.clear();
+        }
+        delete loadedTargetFolderImagePaths[key];
+    });
+
+    const container = document.getElementById('targetFolderImages');
+    if (container) {
+        container.innerHTML = '<div class="target-folder-empty">Loading...</div>';
+        delete container.dataset.loraName;
+    }
+}
+
+function ensureLoraCardLoadingOverlay(block) {
+    if (!block) {
+        return null;
+    }
+
+    let overlay = block.querySelector('.lora-loading-overlay');
+    if (overlay) {
+        return overlay;
+    }
+
+    overlay = document.createElement('div');
+    overlay.className = 'lora-loading-overlay';
+    overlay.innerHTML = '<div class="mini-spinner"></div>';
+    block.appendChild(overlay);
+    return overlay;
+}
+
+function setLoraCardLoadingOverlayState(block, state) {
+    if (!block) {
+        return;
+    }
+
+    const overlay = ensureLoraCardLoadingOverlay(block);
+    if (!overlay) {
+        return;
+    }
+
+    const safeState = String(state || '').toLowerCase();
+    const text = safeState === 'queued'
+        ? 'Queue'
+        : safeState === 'loading'
+            ? 'Loading'
+            : '';
+
+    overlay.dataset.state = safeState;
+    overlay.innerHTML = text
+        ? `<div class="mini-spinner"></div><div class="loading-text">${text}</div>`
+        : '<div class="mini-spinner"></div>';
+}
+
 searchBtn.addEventListener('click', searchLoRAFiles);
+if (sortLoraBtn) {
+    sortLoraBtn.addEventListener('click', () => {
+        loraCardSortOrder = loraCardSortOrder === 'asc' ? 'desc' : 'asc';
+        updateLoraSortButtonText();
+        displayGallery(getSortedLoraList(currentLoraList));
+    });
+}
 unlockPasswordInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         searchLoRAFiles();
@@ -176,6 +304,11 @@ async function searchLoRAFiles() {
     successMessage.innerHTML = '';
     galleryContainer.style.display = 'none';
     allLoRAData = {};
+    currentLoraList = [];
+    clearLoraCardPreviewImagesAndCache();
+    if (sortLoraBtn) {
+        sortLoraBtn.style.display = 'none';
+    }
 
     // Show loading state
     results.classList.add('show');
@@ -188,7 +321,12 @@ async function searchLoRAFiles() {
         if (loraList.length === 0) {
             showError('No LoRA files found in the lora folder.');
         } else {
-            displayGallery(loraList);
+            currentLoraList = Array.isArray(loraList) ? loraList : [];
+            updateLoraSortButtonText();
+            if (sortLoraBtn) {
+                sortLoraBtn.style.display = 'inline-flex';
+            }
+            displayGallery(getSortedLoraList(currentLoraList));
             successMessage.innerHTML = '<div class="success">✓ LoRA models found.</div>';
         }
     } catch (error) {
@@ -198,6 +336,43 @@ async function searchLoRAFiles() {
         loading.style.display = 'none';
         searchBtn.disabled = false;
     }
+}
+
+function getLoraTimestampMs(lora) {
+    const value = lora?.latestTimestampMs;
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    return 0;
+}
+
+function compareLoraByTime(a, b) {
+    const ta = getLoraTimestampMs(a);
+    const tb = getLoraTimestampMs(b);
+    if (ta !== tb) {
+        return ta - tb;
+    }
+    return String(a?.name || '').localeCompare(String(b?.name || ''), undefined, { sensitivity: 'base' });
+}
+
+function getSortedLoraList(list) {
+    const copy = Array.isArray(list) ? [...list] : [];
+    copy.sort(compareLoraByTime);
+    if (loraCardSortOrder === 'desc') {
+        copy.reverse();
+    }
+    return copy;
+}
+
+function updateLoraSortButtonText() {
+    if (!sortLoraBtn) {
+        return;
+    }
+
+    // desc = newest first
+    sortLoraBtn.textContent = loraCardSortOrder === 'asc'
+        ? 'Sort: Oldest'
+        : 'Sort: Newest';
 }
 
 
@@ -213,29 +388,238 @@ function displayGallery(loraList) {
     galleryContainer.style.display = 'block';
     gallery.innerHTML = '';
 
+    // Disconnect previous observer if exists
+    if (window.loraCardObserver) {
+        window.loraCardObserver.disconnect();
+    }
+
+    // Create IntersectionObserver for lazy loading
+    const observerOptions = {
+        root: null,
+        rootMargin: '200px',
+        threshold: 0.01
+    };
+
+    window.loraCardObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const block = entry.target;
+                const imageUrl = block.dataset.imageUrl;
+                const loraName = block.dataset.loraName;
+
+                if (imageUrl && !block.dataset.imageLoading) {
+                    block.dataset.imageLoading = 'true';
+                    loadLoraCardImage(block, imageUrl, loraName);
+                    window.loraCardObserver.unobserve(block);
+                }
+            }
+        });
+    }, observerOptions);
+
     loraList.forEach(lora => {
         const block = document.createElement('div');
         block.className = 'lora-block';
-        
-        let imageHtml = '';
-        if (lora.image) {
-            const imageUrl = getFileUrl(lora.image.path);
-            imageHtml = `<img src="${imageUrl}" alt="${escapeHtml(lora.name)}" class="lora-image">`;
-        } else {
-            imageHtml = `<div class="no-image">No preview image</div>`;
-        }
+        block.dataset.loraName = lora.name;
 
-        block.innerHTML = `
-            ${imageHtml}
-            <div class="lora-name-overlay">${escapeHtml(lora.name)}</div>
-        `;
+        const overlay = document.createElement('div');
+        overlay.className = 'lora-loading-overlay';
+        overlay.innerHTML = '<div class="mini-spinner"></div>';
+
+        const nameOverlay = document.createElement('div');
+        nameOverlay.className = 'lora-name-overlay';
+        nameOverlay.textContent = lora.name;
+
+        block.appendChild(nameOverlay);
+
+        if (lora.image) {
+            block.appendChild(overlay);
+            const imageUrl = getFileUrl(lora.image.path);
+            block.dataset.imageUrl = imageUrl;
+            // Start observing this block for lazy loading
+            window.loraCardObserver.observe(block);
+        } else {
+            const fallback = document.createElement('div');
+            fallback.className = 'no-image';
+            fallback.textContent = 'No preview image';
+            block.insertBefore(fallback, nameOverlay);
+        }
         
         block.addEventListener('click', () => openDetailView(lora.name));
         gallery.appendChild(block);
     });
 }
 
+function loadLoraCardImage(block, imageUrl, loraName) {
+    const nameOverlay = block.querySelector('.lora-name-overlay');
+    const overlay = block.querySelector('.lora-loading-overlay');
+
+    if (!nameOverlay) {
+        return;
+    }
+
+    const cached = loraCardImageCache[loraName] || null;
+    if (cached && cached.status === 'loaded' && cached.objectUrl) {
+        const img = document.createElement('img');
+        img.className = 'lora-image';
+        img.alt = loraName;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.src = cached.objectUrl;
+        block.insertBefore(img, nameOverlay);
+        if (overlay && overlay.parentNode === block) {
+            overlay.remove();
+        }
+        return;
+    }
+
+    // If the previous attempt failed, allow retry after a short cooldown.
+    const now = Date.now();
+    const retryCooldownMs = 10_000;
+    if (cached && cached.status === 'error') {
+        const lastErrorAt = Number(cached.errorAt || cached.loadedAt || 0);
+        if (Number.isFinite(lastErrorAt) && lastErrorAt > 0 && (now - lastErrorAt) < retryCooldownMs) {
+            if (overlay && overlay.parentNode === block) {
+                overlay.remove();
+            }
+            const fallback = document.createElement('div');
+            fallback.className = 'no-image';
+            fallback.textContent = 'No preview image';
+            block.insertBefore(fallback, nameOverlay);
+
+            // Schedule a retry so the user doesn't have to scroll away/back.
+            window.setTimeout(() => {
+                if (!document.body.contains(block)) {
+                    return;
+                }
+                delete block.dataset.imageLoading;
+                if (window.loraCardObserver) {
+                    try {
+                        window.loraCardObserver.observe(block);
+                    } catch (_) {
+                    }
+                }
+            }, Math.max(0, retryCooldownMs - (now - lastErrorAt)));
+            return;
+        }
+    }
+
+    // If already queued/loading for this LoRA name, don't duplicate. But allow retry if it's stale.
+    if (cached && (cached.status === 'queued' || cached.status === 'loading')) {
+        setLoraCardLoadingOverlayState(block, cached.status);
+        const startedAt = Number(cached.startedAt || 0);
+        const staleAfterMs = 15_000;
+        if (Number.isFinite(startedAt) && startedAt > 0 && (now - startedAt) < staleAfterMs) {
+            return;
+        }
+
+        // Stale loading entry: clear and retry.
+        delete loraCardImageCache[loraName];
+    }
+
+    setLoraCardLoadingOverlayState(block, 'queued');
+    loraCardImageCache[loraName] = {
+        src: imageUrl,
+        objectUrl: null,
+        status: 'queued',
+        startedAt: now
+    };
+
+    const generation = loraCardLoadGeneration;
+    const key = getLoraCardDownloadKey(loraName, imageUrl);
+    const token = resolvedHfToken;
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : null;
+
+    void enqueueUrlImageDownload({
+        key,
+        url: imageUrl,
+        headers,
+        shouldContinue: () => generation === loraCardLoadGeneration,
+        onStarted: () => {
+            const entry = loraCardImageCache[loraName] || null;
+            if (entry && (entry.status === 'queued' || entry.status === 'loading')) {
+                entry.status = 'loading';
+                entry.loadingAt = Date.now();
+            }
+            if (block && document.body.contains(block)) {
+                setLoraCardLoadingOverlayState(block, 'loading');
+            }
+        },
+        onLoaded: ({ objectUrl }) => {
+            loraCardImageCache[loraName] = {
+                src: imageUrl,
+                objectUrl,
+                status: 'loaded',
+                loadedAt: Date.now()
+            };
+
+            if (!block || !document.body.contains(block)) {
+                return;
+            }
+
+            const nameOverlay = block.querySelector('.lora-name-overlay');
+            if (!nameOverlay) {
+                return;
+            }
+
+            block.querySelectorAll('.no-image').forEach(el => el.remove());
+            block.querySelectorAll('img.lora-image').forEach(img => img.remove());
+
+            const overlay = block.querySelector('.lora-loading-overlay');
+            const img = document.createElement('img');
+            img.className = 'lora-image';
+            img.alt = loraName;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            img.src = objectUrl;
+            block.insertBefore(img, nameOverlay);
+            if (overlay && overlay.parentNode === block) {
+                overlay.remove();
+            }
+        },
+        onError: (error) => {
+            loraCardImageCache[loraName] = {
+                src: imageUrl,
+                objectUrl: null,
+                status: 'error',
+                errorAt: Date.now(),
+                message: String(error?.message || error)
+            };
+
+            if (!block || !document.body.contains(block)) {
+                return;
+            }
+
+            const overlay = block.querySelector('.lora-loading-overlay');
+            if (overlay && overlay.parentNode === block) {
+                overlay.remove();
+            }
+
+            const fallback = document.createElement('div');
+            fallback.className = 'no-image';
+            fallback.textContent = 'No preview image';
+            block.insertBefore(fallback, nameOverlay);
+
+            delete block.dataset.imageLoading;
+            if (window.loraCardObserver) {
+                try {
+                    window.loraCardObserver.observe(block);
+                } catch (_) {
+                }
+            }
+        }
+    });
+}
+
 function openDetailView(loraName) {
+    // Requirement: entering any LoRA card clears all preview images.
+    if (window.loraCardObserver) {
+        try {
+            window.loraCardObserver.disconnect();
+        } catch (_) {
+        }
+    }
+    clearLoraCardPreviewImagesAndCache();
+
     mainView.style.display = 'none';
     detailView.classList.add('active');
     detailTitle.textContent = loraName;
@@ -694,17 +1078,18 @@ function renderTargetFolderImages(loraName) {
     container.innerHTML = imageList
         .map(item => {
             const domKey = item.domKey || makeImageDomKey(item.path);
+            const imgPathAttr = escapeHtml(String(item.path || ''));
             const status = item.status || (item.objectUrl ? 'loaded' : 'loading');
 
             if (status === 'loaded' && item.objectUrl) {
-                return `<div class="target-folder-item" data-img-key="${domKey}"><img src="${item.objectUrl}" alt="${escapeHtml(item.fileName)}"></div>`;
+                return `<div class="target-folder-item" data-img-key="${domKey}" data-img-path="${imgPathAttr}"><img src="${item.objectUrl}" alt="${escapeHtml(item.fileName)}" loading="lazy" decoding="async"></div>`;
             }
 
             if (status === 'error') {
-                return `<div class="target-folder-item" data-img-key="${domKey}"><div class="target-folder-loading is-error">Load failed</div></div>`;
+                return `<div class="target-folder-item" data-img-key="${domKey}" data-img-path="${imgPathAttr}"><div class="target-folder-loading is-error">Load failed</div></div>`;
             }
 
-            return `<div class="target-folder-item" data-img-key="${domKey}"><div class="target-folder-loading"><div class="mini-spinner"></div><div class="loading-text">Loading...</div></div></div>`;
+            return `<div class="target-folder-item" data-img-key="${domKey}" data-img-path="${imgPathAttr}"><div class="target-folder-loading"><div class="mini-spinner"></div><div class="loading-text">Loading...</div></div></div>`;
         })
         .join('');
 }
@@ -725,13 +1110,15 @@ function setupTargetFolderImageZoom() {
             ? container.dataset.loraName
             : (fallbackName || '').trim();
         const domKey = clickedTile.dataset.imgKey || '';
+        const path = clickedTile.dataset.imgPath || '';
 
         console.log('[zoom] open lightbox for:', clickedImage ? clickedImage.src : '(loading)');
         openImageLightbox({
             src: clickedImage ? clickedImage.src : '',
             altText: clickedImage ? clickedImage.alt || '' : '',
             loraName,
-            domKey
+            domKey,
+            path
         });
     });
 
@@ -749,6 +1136,39 @@ function setupTargetFolderImageZoom() {
             event.preventDefault();
             navigateLightbox(1);
         }
+    });
+}
+
+function requestTargetFolderImageIfNeeded(loraName, imageItem) {
+    if (!imageItem || imageItem.status === 'loaded' || imageItem.src) {
+        return;
+    }
+
+    const path = String(imageItem.path || '').trim();
+    if (!path) {
+        return;
+    }
+
+    const token = resolvedHfToken;
+    if (!token) {
+        return;
+    }
+
+    const repoId = 'Gazai-ai/Gacha-LoRA';
+    const generation = (typeof targetFolderLoadGeneration === 'object' && targetFolderLoadGeneration)
+        ? (targetFolderLoadGeneration[loraName] || 0)
+        : 0;
+
+    if (typeof enqueueTargetFolderImageDownload !== 'function') {
+        return;
+    }
+
+    void enqueueTargetFolderImageDownload({
+        loraName,
+        path,
+        token,
+        repoId,
+        generation
     });
 }
 
@@ -777,7 +1197,8 @@ function getTargetFolderImageList(loraName) {
             src: item.objectUrl || '',
             alt: item.fileName || '',
             status: item.status || (item.objectUrl ? 'loaded' : 'loading'),
-            domKey: item.domKey || makeImageDomKey(item.path)
+            domKey: item.domKey || makeImageDomKey(item.path),
+            path: item.path || ''
         }));
     }
 
@@ -788,7 +1209,8 @@ function getTargetFolderImageList(loraName) {
             src: img ? img.src : '',
             alt: img ? img.alt || '' : '',
             status: img ? 'loaded' : 'loading',
-            domKey: tile.dataset.imgKey || ''
+            domKey: tile.dataset.imgKey || '',
+            path: tile.dataset.imgPath || ''
         };
     });
 }
@@ -838,7 +1260,7 @@ function ensureImageLightbox() {
     return lightbox;
 }
 
-function openImageLightbox({ src, altText, loraName, domKey }) {
+function openImageLightbox({ src, altText, loraName, domKey, path }) {
     const lightbox = ensureImageLightbox();
     const images = getTargetFolderImageList(loraName);
     let index = -1;
@@ -860,7 +1282,8 @@ function openImageLightbox({ src, altText, loraName, domKey }) {
             src: src || '',
             alt: altText || '',
             status: 'loading',
-            domKey: domKey || ''
+            domKey: domKey || '',
+            path: path || ''
         });
         index = 0;
     }
@@ -870,6 +1293,7 @@ function openImageLightbox({ src, altText, loraName, domKey }) {
         index
     };
 
+    requestTargetFolderImageIfNeeded(loraName, lightboxState.images[lightboxState.index]);
     updateLightboxMainDisplay();
     renderLightboxThumbnails();
     updateLightboxNavState();
@@ -885,6 +1309,12 @@ function navigateLightbox(direction) {
     const total = lightboxState.images.length;
     const nextIndex = (lightboxState.index + direction + total) % total;
     lightboxState.index = nextIndex;
+
+    const active = lightboxState.images[lightboxState.index];
+    requestTargetFolderImageIfNeeded(
+        (document.getElementById('targetFolderImages')?.dataset?.loraName || '').trim(),
+        active
+    );
 
     const lightbox = document.querySelector('.image-lightbox');
     if (lightbox) {
@@ -905,6 +1335,11 @@ function updateLightboxMainDisplay() {
     const loading = lightbox.querySelector('.lightbox-loading');
     const activeImage = lightboxState.images[lightboxState.index];
     const isLoaded = Boolean(activeImage && activeImage.status === 'loaded' && activeImage.src);
+
+    requestTargetFolderImageIfNeeded(
+        (document.getElementById('targetFolderImages')?.dataset?.loraName || '').trim(),
+        activeImage
+    );
 
     if (image) {
         if (isLoaded) {
@@ -1017,7 +1452,7 @@ function updateTargetFolderImageTile(loraName, entry) {
     }
 
     if (entry.status === 'loaded' && entry.objectUrl) {
-        tile.innerHTML = `<img src="${entry.objectUrl}" alt="${escapeHtml(entry.fileName)}">`;
+        tile.innerHTML = `<img src="${entry.objectUrl}" alt="${escapeHtml(entry.fileName)}" loading="lazy" decoding="async">`;
     } else if (entry.status === 'error') {
         tile.innerHTML = `<div class="target-folder-loading is-error">Load failed</div>`;
     } else {
@@ -1037,7 +1472,8 @@ function updateTargetFolderImageTile(loraName, entry) {
         src: entry.objectUrl || '',
         alt: entry.fileName || '',
         status: entry.status || (entry.objectUrl ? 'loaded' : 'loading'),
-        domKey
+        domKey,
+        path: entry.path || ''
     };
 
     if (matchIndex === lightboxState.index) {
@@ -1050,6 +1486,14 @@ function updateTargetFolderImageTile(loraName, entry) {
 function backToMainView() {
     mainView.style.display = 'block';
     detailView.classList.remove('active');
+
+    // Requirement: leaving detail clears all result images.
+    clearAllResultImagesCacheAndUrls();
+
+    // Rebuild the gallery so the observer is reattached and images can lazy-load again.
+    if (Array.isArray(currentLoraList) && currentLoraList.length > 0) {
+        displayGallery(getSortedLoraList(currentLoraList));
+    }
 }
 
 function showError(message) {

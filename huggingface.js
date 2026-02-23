@@ -1,5 +1,421 @@
 const HF_HUB_PROMISE_KEY = '__hfHubModulePromise';
 
+const TARGET_FOLDER_MAX_CONCURRENT_DOWNLOADS = 5;
+const targetFolderDownloadQueue = [];
+const targetFolderDownloadPromiseByKey = new Map();
+let targetFolderDownloadActiveCount = 0;
+const targetFolderLoadGeneration = {};
+const targetFolderLazyObserverByLora = {};
+
+function getTargetFolderDownloadKey(loraName, path) {
+    return `${String(loraName || '')}::${String(path || '')}`;
+}
+
+function waitForImageReady(src, timeoutMs = 30000) {
+    return new Promise((resolve, reject) => {
+        const safeSrc = String(src || '').trim();
+        if (!safeSrc) {
+            reject(new Error('Missing image src'));
+            return;
+        }
+
+        const img = new Image();
+        let done = false;
+        const timeoutId = setTimeout(() => {
+            if (done) {
+                return;
+            }
+            done = true;
+            reject(new Error('Image load timeout'));
+        }, timeoutMs);
+
+        function cleanup() {
+            clearTimeout(timeoutId);
+            img.onload = null;
+            img.onerror = null;
+        }
+
+        img.onload = () => {
+            if (done) {
+                return;
+            }
+
+            const finalize = () => {
+                if (done) {
+                    return;
+                }
+                done = true;
+                cleanup();
+                resolve();
+            };
+
+            if (typeof img.decode === 'function') {
+                img.decode().then(finalize).catch(finalize);
+                return;
+            }
+
+            finalize();
+        };
+
+        img.onerror = () => {
+            if (done) {
+                return;
+            }
+            done = true;
+            cleanup();
+            reject(new Error('Image failed to load'));
+        };
+
+        img.src = safeSrc;
+    });
+}
+
+function disconnectTargetFolderLazyObserver(loraName) {
+    const safeLora = String(loraName || '').trim();
+    const observer = targetFolderLazyObserverByLora[safeLora];
+    if (observer) {
+        try {
+            observer.disconnect();
+        } catch (_) {
+        }
+    }
+    delete targetFolderLazyObserverByLora[safeLora];
+}
+
+function setupTargetFolderLazyDownloads({ loraName, token, repoId, generation }) {
+    const safeLora = String(loraName || '').trim();
+    const container = document.getElementById('targetFolderImages');
+    if (!safeLora || !container || !token || !repoId) {
+        return;
+    }
+
+    // Recreate observer each time to capture the latest token/repoId/generation.
+    disconnectTargetFolderLazyObserver(safeLora);
+
+    const observer = new IntersectionObserver(
+        (entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                const tile = entry.target;
+                observer.unobserve(tile);
+
+                const path = String(tile?.dataset?.imgPath || '').trim();
+                if (!path) {
+                    return;
+                }
+
+                const currentGen = targetFolderLoadGeneration[safeLora] || 0;
+                if (typeof generation === 'number' && generation !== currentGen) {
+                    return;
+                }
+
+                const entryCache = targetFolderImageCache?.[safeLora]?.[path] || null;
+                if (!entryCache || entryCache.objectUrl || entryCache.status === 'error') {
+                    return;
+                }
+
+                void enqueueTargetFolderImageDownload({
+                    loraName: safeLora,
+                    path,
+                    token,
+                    repoId,
+                    generation
+                });
+            });
+        },
+        {
+            root: null,
+            rootMargin: '800px',
+            threshold: 0.01
+        }
+    );
+
+    targetFolderLazyObserverByLora[safeLora] = observer;
+
+    const tiles = container.querySelectorAll('.target-folder-item[data-img-path]');
+    tiles.forEach(tile => {
+        const path = String(tile?.dataset?.imgPath || '').trim();
+        if (!path) {
+            return;
+        }
+
+        const entryCache = targetFolderImageCache?.[safeLora]?.[path] || null;
+        if (!entryCache || entryCache.objectUrl || entryCache.status === 'error') {
+            return;
+        }
+
+        observer.observe(tile);
+    });
+}
+
+function drainTargetFolderDownloadQueue() {
+    while (targetFolderDownloadActiveCount < TARGET_FOLDER_MAX_CONCURRENT_DOWNLOADS
+        && targetFolderDownloadQueue.length > 0) {
+        const task = targetFolderDownloadQueue.shift();
+        if (!task) {
+            continue;
+        }
+
+        targetFolderDownloadActiveCount += 1;
+        const kind = task.kind || 'targetFolder';
+        const runner = kind === 'url' ? runUrlImageDownloadTask : runTargetFolderDownloadTask;
+        void runner(task)
+            .catch(() => {
+            })
+            .finally(() => {
+                targetFolderDownloadActiveCount = Math.max(0, targetFolderDownloadActiveCount - 1);
+                drainTargetFolderDownloadQueue();
+            });
+    }
+}
+
+async function runUrlImageDownloadTask(task) {
+    const {
+        key,
+        url,
+        headers,
+        shouldContinue,
+        onStarted,
+        onLoaded,
+        onError,
+        resolve,
+        reject
+    } = task || {};
+
+    const safeKey = String(key || '').trim();
+    const safeUrl = String(url || '').trim();
+
+    try {
+        if (!safeKey || !safeUrl) {
+            return;
+        }
+
+        if (typeof shouldContinue === 'function' && !shouldContinue()) {
+            return;
+        }
+
+        if (typeof onStarted === 'function') {
+            try {
+                onStarted();
+            } catch (_) {
+            }
+        }
+
+        const res = await fetch(safeUrl, headers ? { headers } : undefined);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+
+        if (typeof shouldContinue === 'function' && !shouldContinue()) {
+            try {
+                URL.revokeObjectURL(objectUrl);
+            } catch (_) {
+            }
+            return;
+        }
+
+        if (typeof onLoaded === 'function') {
+            onLoaded({ blob, objectUrl, url: safeUrl });
+        }
+
+        if (typeof resolve === 'function') {
+            resolve({ blob, objectUrl, url: safeUrl });
+        }
+    } catch (error) {
+        if (typeof onError === 'function') {
+            try {
+                onError(error);
+            } catch (_) {
+            }
+        }
+        if (typeof reject === 'function') {
+            reject(error);
+        }
+    } finally {
+        if (safeKey) {
+            targetFolderDownloadPromiseByKey.delete(safeKey);
+        }
+    }
+}
+
+async function runTargetFolderDownloadTask(task) {
+    const { loraName, path, token, repoId, generation, resolve } = task || {};
+    const safeLora = String(loraName || '').trim();
+    const safePath = String(path || '').trim();
+    const key = getTargetFolderDownloadKey(safeLora, safePath);
+
+    try {
+        const currentGen = targetFolderLoadGeneration[safeLora] || 0;
+        if (!safeLora || !safePath || !token || !repoId) {
+            return;
+        }
+
+        const entry = targetFolderImageCache?.[safeLora]?.[safePath] || null;
+        if (!entry) {
+            return;
+        }
+
+        if (entry.objectUrl && entry.status === 'loaded') {
+            return;
+        }
+
+        // If a reset happened after enqueue, do not waste work updating stale UI.
+        if (typeof generation === 'number' && generation !== currentGen) {
+            return;
+        }
+
+        const fileRes = await fetch(`https://huggingface.co/${repoId}/resolve/main/${safePath}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const genAfterFetch = targetFolderLoadGeneration[safeLora] || 0;
+        if (typeof generation === 'number' && generation !== genAfterFetch) {
+            return;
+        }
+
+        if (!fileRes.ok) {
+            entry.status = 'error';
+            updateTargetFolderImageTile(safeLora, entry);
+            return;
+        }
+
+        const blob = await fileRes.blob();
+        const objectUrl = URL.createObjectURL(blob);
+
+        // If a reset happened while decoding, do not attach this URL.
+        const genBeforeAttach = targetFolderLoadGeneration[safeLora] || 0;
+        if (typeof generation === 'number' && generation !== genBeforeAttach) {
+            try {
+                URL.revokeObjectURL(objectUrl);
+            } catch (_) {
+            }
+            return;
+        }
+
+        entry.objectUrl = objectUrl;
+        entry.status = 'loaded';
+        updateTargetFolderImageTile(safeLora, entry);
+    } finally {
+        targetFolderDownloadPromiseByKey.delete(key);
+        if (typeof resolve === 'function') {
+            resolve();
+        }
+    }
+}
+
+function enqueueTargetFolderImageDownload({ loraName, path, token, repoId, generation }) {
+    const safeLora = String(loraName || '').trim();
+    const safePath = String(path || '').trim();
+    const key = getTargetFolderDownloadKey(safeLora, safePath);
+
+    const existing = targetFolderDownloadPromiseByKey.get(key);
+    if (existing) {
+        return existing;
+    }
+
+    const promise = new Promise((resolve) => {
+        targetFolderDownloadQueue.push({
+            kind: 'targetFolder',
+            loraName: safeLora,
+            path: safePath,
+            token,
+            repoId,
+            generation,
+            resolve
+        });
+        drainTargetFolderDownloadQueue();
+    });
+
+    targetFolderDownloadPromiseByKey.set(key, promise);
+    return promise;
+}
+
+function enqueueUrlImageDownload({ key, url, headers, shouldContinue, onStarted, onLoaded, onError }) {
+    const safeKey = String(key || '').trim();
+    const safeUrl = String(url || '').trim();
+    if (!safeKey || !safeUrl) {
+        return Promise.reject(new Error('Missing key/url for enqueueUrlImageDownload'));
+    }
+
+    const existing = targetFolderDownloadPromiseByKey.get(safeKey);
+    if (existing) {
+        return existing;
+    }
+
+    const promise = new Promise((resolve, reject) => {
+        targetFolderDownloadQueue.push({
+            kind: 'url',
+            key: safeKey,
+            url: safeUrl,
+            headers: headers || null,
+            shouldContinue,
+            onStarted,
+            onLoaded,
+            onError,
+            resolve,
+            reject
+        });
+        drainTargetFolderDownloadQueue();
+    });
+
+    targetFolderDownloadPromiseByKey.set(safeKey, promise);
+    return promise;
+}
+
+function extractHfTreeItemTimestampMs(item) {
+    if (!item || typeof item !== 'object') {
+        return 0;
+    }
+
+    const candidates = [
+        item.lastCommitDate,
+        item.last_commit_date,
+        item.lastModified,
+        item.last_modified,
+        item.updatedAt,
+        item.updated_at,
+        item.createdAt,
+        item.created_at,
+        item.commitDate,
+        item.commit_date,
+        item.date
+    ];
+
+    for (const value of candidates) {
+        if (!value) {
+            continue;
+        }
+
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            // Some APIs return seconds; others ms.
+            return value > 10_000_000_000 ? value : value * 1000;
+        }
+
+        if (typeof value === 'string') {
+            const parsed = Date.parse(value);
+            if (Number.isFinite(parsed)) {
+                return parsed;
+            }
+        }
+    }
+
+    // Some HF responses nest commit info.
+    const nested = item.lastCommit || item.last_commit || item.commit || null;
+    if (nested && typeof nested === 'object') {
+        return extractHfTreeItemTimestampMs(nested);
+    }
+
+    return 0;
+}
+
 async function fetchLoRAFiles(token) {
     const repo = 'Gazai-ai/Gacha-LoRA';
 
@@ -45,11 +461,17 @@ async function fetchLoRAFiles(token) {
                             name: loraName,
                             files: [],
                             image: null,
-                            safetensors: null
+                            safetensors: null,
+                            latestTimestampMs: 0
                         };
                     }
 
                     loraGrouped[loraName].files.push(item);
+
+                    const itemTimestampMs = extractHfTreeItemTimestampMs(item);
+                    if (itemTimestampMs > (loraGrouped[loraName].latestTimestampMs || 0)) {
+                        loraGrouped[loraName].latestTimestampMs = itemTimestampMs;
+                    }
 
                     // Find image
                     if (/\.(png|jpg|jpeg|webp)$/i.test(fileName)) {
@@ -79,7 +501,7 @@ async function fetchLoRAFiles(token) {
             throw new Error('No valid LoRA models found in the lora folder.');
         }
 
-        return filteredLoraList.sort((a, b) => a.name.localeCompare(b.name));
+        return filteredLoraList;
     } catch (error) {
         throw new Error(`Unable to fetch file list: ${error.message}`);
     }
@@ -274,6 +696,7 @@ async function loadDetailJsonAndTargetImages(loraName, loraData) {
 
 async function loadTargetFolderImages(loraName, token, options = {}) {
     const reset = !!options.reset;
+    const background = !!options.background;
     const container = document.getElementById('targetFolderImages');
     if (!container) {
         return;
@@ -291,6 +714,8 @@ async function loadTargetFolderImages(loraName, token, options = {}) {
     }
 
     if (reset) {
+        targetFolderLoadGeneration[loraName] = (targetFolderLoadGeneration[loraName] || 0) + 1;
+        disconnectTargetFolderLazyObserver(loraName);
         Object.values(targetFolderImageCache[loraName]).forEach(item => {
             if (item?.objectUrl) {
                 URL.revokeObjectURL(item.objectUrl);
@@ -335,6 +760,8 @@ async function loadTargetFolderImages(loraName, token, options = {}) {
 
         if (!reset && itemsToLoad.length === 0) {
             renderTargetFolderImages(loraName);
+            const generation = targetFolderLoadGeneration[loraName] || 0;
+            setupTargetFolderLazyDownloads({ loraName, token, repoId, generation });
             return;
         }
 
@@ -362,49 +789,13 @@ async function loadTargetFolderImages(loraName, token, options = {}) {
 
         renderTargetFolderImages(loraName);
 
-        const concurrency = 6;
-        let cursor = 0;
-
-        async function downloadWorker() {
-            while (cursor < itemsToLoad.length) {
-                const current = itemsToLoad[cursor];
-                cursor += 1;
-
-                const entry = targetFolderImageCache[loraName][current.path];
-                if (!entry || entry.objectUrl) {
-                    continue;
-                }
-
-                try {
-                    const fileRes = await fetch(`https://huggingface.co/${repoId}/resolve/main/${current.path}`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-
-                    if (!fileRes.ok) {
-                        entry.status = 'error';
-                        updateTargetFolderImageTile(loraName, entry);
-                        continue;
-                    }
-
-                    const blob = await fileRes.blob();
-                    entry.objectUrl = URL.createObjectURL(blob);
-                    entry.status = 'loaded';
-                    updateTargetFolderImageTile(loraName, entry);
-                } catch (_) {
-                    entry.status = 'error';
-                    updateTargetFolderImageTile(loraName, entry);
-                }
-            }
+        // Lazy-load downloads only when tiles become visible to avoid decoding many 4K images at once.
+        // Still keep background flag for compatibility; with lazy loading, it simply means we return immediately.
+        const generation = targetFolderLoadGeneration[loraName] || 0;
+        setupTargetFolderLazyDownloads({ loraName, token, repoId, generation });
+        if (background) {
+            return;
         }
-
-        await Promise.all(
-            Array.from({ length: Math.min(concurrency, itemsToLoad.length) }, () => downloadWorker())
-        );
-
-        // After downloads finish, re-sort once (does not affect loaded images)
-        renderTargetFolderImages(loraName);
     } catch (error) {
         container.innerHTML = `<div class="target-folder-empty">Failed to load target folder images: ${escapeHtml(error.message)}</div>`;
     }
