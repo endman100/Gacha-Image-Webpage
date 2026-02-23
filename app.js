@@ -404,12 +404,13 @@ function displayGallery(loraList) {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const block = entry.target;
-                const imageUrl = block.dataset.imageUrl;
+                const shortcutUrl = block.dataset.shortcutUrl;
+                const originalUrl = block.dataset.originalUrl;
                 const loraName = block.dataset.loraName;
 
-                if (imageUrl && !block.dataset.imageLoading) {
+                if (shortcutUrl && !block.dataset.imageLoading) {
                     block.dataset.imageLoading = 'true';
-                    loadLoraCardImage(block, imageUrl, loraName);
+                    loadLoraCardImage(block, { shortcutUrl, originalUrl, loraName });
                     window.loraCardObserver.unobserve(block);
                 }
             }
@@ -421,6 +422,21 @@ function displayGallery(loraList) {
         block.className = 'lora-block';
         block.dataset.loraName = lora.name;
 
+        const actions = document.createElement('div');
+        actions.className = 'lora-card-actions';
+        const hideBtn = document.createElement('button');
+        hideBtn.type = 'button';
+        hideBtn.className = 'lora-hide-btn';
+        hideBtn.textContent = '🗑';
+        hideBtn.title = 'Remove this LoRA';
+        hideBtn.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void hideLoraFromMainGallery({ loraName: lora.name, block, button: hideBtn });
+        });
+        actions.appendChild(hideBtn);
+        block.appendChild(actions);
+
         const overlay = document.createElement('div');
         overlay.className = 'lora-loading-overlay';
         overlay.innerHTML = '<div class="mini-spinner"></div>';
@@ -431,25 +447,252 @@ function displayGallery(loraList) {
 
         block.appendChild(nameOverlay);
 
-        if (lora.image) {
-            block.appendChild(overlay);
-            const imageUrl = getFileUrl(lora.image.path);
-            block.dataset.imageUrl = imageUrl;
-            // Start observing this block for lazy loading
-            window.loraCardObserver.observe(block);
+        // For LoRA cards: prefer short_cut/{loraName}.jpg to avoid loading huge PNGs.
+        // If shortcut is missing, we may generate/upload it from the original LoRA PNG.
+        const shortcutPath = `short_cut/${lora.name}.jpg`;
+        const shortcutUrl = getFileUrl(shortcutPath);
+        block.dataset.shortcutUrl = shortcutUrl;
+        if (lora.image?.path) {
+            block.dataset.originalUrl = getFileUrl(lora.image.path);
         } else {
-            const fallback = document.createElement('div');
-            fallback.className = 'no-image';
-            fallback.textContent = 'No preview image';
-            block.insertBefore(fallback, nameOverlay);
+            block.dataset.originalUrl = '';
         }
+
+        block.appendChild(overlay);
+        // Start observing this block for lazy loading
+        window.loraCardObserver.observe(block);
         
         block.addEventListener('click', () => openDetailView(lora.name));
         gallery.appendChild(block);
     });
 }
 
-function loadLoraCardImage(block, imageUrl, loraName) {
+async function resizeImageBlobToMaxSide(blob, maxSidePx = 512, options = {}) {
+    const safeMax = Number(maxSidePx);
+    const targetMax = Number.isFinite(safeMax) && safeMax > 0 ? safeMax : 512;
+    const mimeType = String(options.mimeType || 'image/jpeg');
+    const quality = typeof options.quality === 'number' ? options.quality : 0.86;
+
+    if (!blob) {
+        throw new Error('Missing blob for resize');
+    }
+
+    let bitmap = null;
+    try {
+        if (typeof createImageBitmap === 'function') {
+            bitmap = await createImageBitmap(blob);
+        }
+    } catch (_) {
+        bitmap = null;
+    }
+
+    if (!bitmap) {
+        // Fallback to HTMLImageElement
+        const tempUrl = URL.createObjectURL(blob);
+        try {
+            await waitForImageReady(tempUrl, 30000);
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = tempUrl;
+            await new Promise((resolve, reject) => {
+                img.onload = () => resolve();
+                img.onerror = () => reject(new Error('Image failed to load for resize'));
+            });
+            bitmap = { width: img.naturalWidth || img.width, height: img.naturalHeight || img.height, _img: img };
+        } finally {
+            try {
+                URL.revokeObjectURL(tempUrl);
+            } catch (_) {
+            }
+        }
+    }
+
+    const srcW = Number(bitmap.width || 0);
+    const srcH = Number(bitmap.height || 0);
+    if (!(srcW > 0 && srcH > 0)) {
+        if (bitmap && typeof bitmap.close === 'function') {
+            try {
+                bitmap.close();
+            } catch (_) {
+            }
+        }
+        throw new Error('Invalid source image size');
+    }
+
+    const maxSide = Math.max(srcW, srcH);
+    const scale = maxSide > targetMax ? (targetMax / maxSide) : 1;
+    const dstW = Math.max(1, Math.round(srcW * scale));
+    const dstH = Math.max(1, Math.round(srcH * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = dstW;
+    canvas.height = dstH;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) {
+        if (bitmap && typeof bitmap.close === 'function') {
+            try {
+                bitmap.close();
+            } catch (_) {
+            }
+        }
+        throw new Error('Canvas 2D context unavailable');
+    }
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    if (bitmap._img) {
+        ctx.drawImage(bitmap._img, 0, 0, dstW, dstH);
+    } else {
+        ctx.drawImage(bitmap, 0, 0, dstW, dstH);
+    }
+
+    if (bitmap && typeof bitmap.close === 'function') {
+        try {
+            bitmap.close();
+        } catch (_) {
+        }
+    }
+
+    const outBlob = await new Promise((resolve) => {
+        canvas.toBlob(
+            (result) => resolve(result || null),
+            mimeType,
+            quality
+        );
+    });
+
+    if (!outBlob) {
+        throw new Error('Failed to encode resized image');
+    }
+    return outBlob;
+}
+
+async function uploadLoraCardShortcutJpg({ loraName, token, blob, onCooldownTick, onUploadStart }) {
+    const safeName = String(loraName || '').trim();
+    const safeToken = String(token || '').trim();
+    if (!safeName) {
+        throw new Error('Missing loraName for shortcut upload');
+    }
+    if (!safeToken) {
+        throw new Error('Missing token for shortcut upload');
+    }
+    if (!blob) {
+        throw new Error('Missing blob for shortcut upload');
+    }
+
+    const repoId = 'Gazai-ai/Gacha-LoRA';
+    const hub = await getHfHubModule();
+    const repo = { type: 'model', name: repoId };
+    const path = `short_cut/${safeName}.jpg`;
+
+    await enqueueHfUploadFiles({
+        hub,
+        repo,
+        accessToken: safeToken,
+        files: [{ path, content: blob }],
+        commitTitle: `Add short_cut preview for ${sanitizeSceneName(safeName)}`,
+        onCooldownTick,
+        onUploadStart
+    });
+}
+
+function setMainStatus(message, type) {
+    if (type === 'error') {
+        errorMessage.innerHTML = `<div class="error">✗ ${escapeHtml(message)}</div>`;
+        return;
+    }
+    successMessage.innerHTML = `<div class="success">✓ ${escapeHtml(message)}</div>`;
+}
+
+function removeLoraFromMainLists(loraName) {
+    const safeName = String(loraName || '').trim();
+    if (!safeName) {
+        return;
+    }
+
+    // Remove from data used by detail view.
+    if (allLoRAData && allLoRAData[safeName]) {
+        delete allLoRAData[safeName];
+    }
+
+    // Remove from current list.
+    if (Array.isArray(currentLoraList)) {
+        currentLoraList = currentLoraList.filter(item => String(item?.name || '').trim() !== safeName);
+    }
+
+    // Release cached preview image URL if any.
+    const entry = loraCardImageCache?.[safeName] || null;
+    if (entry?.objectUrl) {
+        try {
+            URL.revokeObjectURL(entry.objectUrl);
+        } catch (_) {
+        }
+    }
+    if (loraCardImageCache && safeName in loraCardImageCache) {
+        delete loraCardImageCache[safeName];
+    }
+}
+
+async function hideLoraFromMainGallery({ loraName, block, button }) {
+    const safeName = String(loraName || '').trim();
+    if (!safeName) {
+        return;
+    }
+
+    errorMessage.innerHTML = '';
+    successMessage.innerHTML = '';
+
+    let token = resolvedHfToken;
+    if (!token) {
+        try {
+            token = await resolveTokenForSearch();
+        } catch (error) {
+            setMainStatus(error.message || 'Unable to obtain Hugging Face token.', 'error');
+            return;
+        }
+    }
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = '…';
+    }
+    if (block) {
+        block.classList.add('is-hiding');
+    }
+
+    try {
+        if (typeof hideLoraModelInHfHiddenJson !== 'function') {
+            throw new Error('hideLoraModelInHfHiddenJson() is not available.');
+        }
+
+        await hideLoraModelInHfHiddenJson({ loraName: safeName, token });
+        removeLoraFromMainLists(safeName);
+
+        if (Array.isArray(currentLoraList) && currentLoraList.length > 0) {
+            displayGallery(getSortedLoraList(currentLoraList));
+        } else {
+            gallery.innerHTML = '';
+            galleryContainer.style.display = 'none';
+        }
+
+        setMainStatus(`已移除：${safeName}`, 'success');
+    } catch (error) {
+        console.error('Hide LoRA failed:', error);
+        const msg = String(error?.message || error);
+        setMainStatus(`移除失敗：${safeName}（${msg}）`, 'error');
+
+        if (button) {
+            button.disabled = false;
+            button.textContent = '🗑';
+        }
+        if (block) {
+            block.classList.remove('is-hiding');
+        }
+    }
+}
+
+function loadLoraCardImage(block, { shortcutUrl, originalUrl, loraName }) {
     const nameOverlay = block.querySelector('.lora-name-overlay');
     const overlay = block.querySelector('.lora-loading-overlay');
 
@@ -516,24 +759,220 @@ function loadLoraCardImage(block, imageUrl, loraName) {
         delete loraCardImageCache[loraName];
     }
 
+    const safeShortcutUrl = String(shortcutUrl || '').trim();
+    const safeOriginalUrl = String(originalUrl || '').trim();
+
     setLoraCardLoadingOverlayState(block, 'queued');
     loraCardImageCache[loraName] = {
-        src: imageUrl,
+        src: safeShortcutUrl,
         objectUrl: null,
         status: 'queued',
         startedAt: now
     };
 
     const generation = loraCardLoadGeneration;
-    const key = getLoraCardDownloadKey(loraName, imageUrl);
+    const key = getLoraCardDownloadKey(loraName, safeShortcutUrl);
     const token = resolvedHfToken;
     const headers = token ? { 'Authorization': `Bearer ${token}` } : null;
 
+    const attachObjectUrlToCard = (objectUrlToUse) => {
+        if (!block || !document.body.contains(block)) {
+            return;
+        }
+
+        const nameOverlay = block.querySelector('.lora-name-overlay');
+        if (!nameOverlay) {
+            return;
+        }
+
+        block.querySelectorAll('.no-image').forEach(el => el.remove());
+        block.querySelectorAll('img.lora-image').forEach(img => img.remove());
+
+        const overlay = block.querySelector('.lora-loading-overlay');
+        const img = document.createElement('img');
+        img.className = 'lora-image';
+        img.alt = loraName;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.src = objectUrlToUse;
+        block.insertBefore(img, nameOverlay);
+        if (overlay && overlay.parentNode === block) {
+            overlay.remove();
+        }
+    };
+
+    const showNoPreviewFallback = () => {
+        if (!block || !document.body.contains(block)) {
+            return;
+        }
+
+        const overlay = block.querySelector('.lora-loading-overlay');
+        if (overlay && overlay.parentNode === block) {
+            overlay.remove();
+        }
+
+        const nameOverlay = block.querySelector('.lora-name-overlay');
+        if (!nameOverlay) {
+            return;
+        }
+
+        const fallback = document.createElement('div');
+        fallback.className = 'no-image';
+        fallback.textContent = 'No preview image';
+        block.insertBefore(fallback, nameOverlay);
+
+        delete block.dataset.imageLoading;
+        if (window.loraCardObserver) {
+            try {
+                window.loraCardObserver.observe(block);
+            } catch (_) {
+            }
+        }
+    };
+
+    const shouldContinue = () => generation === loraCardLoadGeneration;
+
+    const fallbackToOriginalAndMaybeUpload = () => {
+        if (!safeOriginalUrl) {
+            loraCardImageCache[loraName] = {
+                src: safeShortcutUrl,
+                objectUrl: null,
+                status: 'error',
+                errorAt: Date.now(),
+                message: 'Missing original preview image'
+            };
+            showNoPreviewFallback();
+            return;
+        }
+
+        const originalKey = getLoraCardDownloadKey(loraName, safeOriginalUrl);
+        void enqueueUrlImageDownload({
+            key: originalKey,
+            url: safeOriginalUrl,
+            headers,
+            shouldContinue,
+            onStarted: () => {
+                const entry = loraCardImageCache[loraName] || null;
+                if (entry && (entry.status === 'queued' || entry.status === 'loading')) {
+                    entry.status = 'loading';
+                    entry.loadingAt = Date.now();
+                    entry.src = safeOriginalUrl;
+                }
+                if (block && document.body.contains(block)) {
+                    setLoraCardLoadingOverlayState(block, 'loading');
+                }
+            },
+            onLoaded: ({ blob, objectUrl: downloadedObjectUrl }) => {
+                // Immediately revoke the large original download URL once we have the blob.
+                if (downloadedObjectUrl) {
+                    try {
+                        URL.revokeObjectURL(downloadedObjectUrl);
+                    } catch (_) {
+                    }
+                }
+
+                (async () => {
+                    try {
+                        if (!shouldContinue()) {
+                            return;
+                        }
+
+                        const resizedBlob = await resizeImageBlobToMaxSide(blob, 512, {
+                            mimeType: 'image/jpeg',
+                            quality: 0.86
+                        });
+
+                        if (!shouldContinue()) {
+                            return;
+                        }
+
+                        const resizedObjectUrl = URL.createObjectURL(resizedBlob);
+                        // Replace any previous URL for this LoRA.
+                        const prev = loraCardImageCache[loraName] || null;
+                        if (prev?.objectUrl && prev.objectUrl !== resizedObjectUrl) {
+                            try {
+                                URL.revokeObjectURL(prev.objectUrl);
+                            } catch (_) {
+                            }
+                        }
+
+                        loraCardImageCache[loraName] = {
+                            src: safeShortcutUrl,
+                            objectUrl: resizedObjectUrl,
+                            status: 'loaded',
+                            loadedAt: Date.now(),
+                            generatedFrom: safeOriginalUrl
+                        };
+
+                        attachObjectUrlToCard(resizedObjectUrl);
+
+                        // Best-effort upload so future sessions can load the small JPG.
+                        if (token) {
+                            try {
+                                await uploadLoraCardShortcutJpg({
+                                    loraName,
+                                    token,
+                                    blob: resizedBlob,
+                                    onCooldownTick: ({ remainingSeconds }) => {
+                                        if (block && document.body.contains(block)) {
+                                            const overlay = ensureLoraCardLoadingOverlay(block);
+                                            if (overlay) {
+                                                overlay.dataset.state = 'cooldown';
+                                                overlay.innerHTML = `<div class="mini-spinner"></div><div class="loading-text">Wait ${remainingSeconds}s</div>`;
+                                            }
+                                        }
+                                    },
+                                    onUploadStart: () => {
+                                        if (block && document.body.contains(block)) {
+                                            const overlay = ensureLoraCardLoadingOverlay(block);
+                                            if (overlay) {
+                                                overlay.dataset.state = 'uploading';
+                                                overlay.innerHTML = '<div class="mini-spinner"></div><div class="loading-text">Uploading</div>';
+                                            }
+                                        }
+                                    }
+                                });
+                            } catch (uploadError) {
+                                console.warn(`Failed to upload short_cut preview for ${loraName}:`, uploadError?.message || uploadError);
+                            } finally {
+                                if (block && document.body.contains(block)) {
+                                    const overlay = block.querySelector('.lora-loading-overlay');
+                                    if (overlay && overlay.parentNode === block) {
+                                        overlay.remove();
+                                    }
+                                }
+                            }
+                        }
+                    } catch (processError) {
+                        loraCardImageCache[loraName] = {
+                            src: safeOriginalUrl,
+                            objectUrl: null,
+                            status: 'error',
+                            errorAt: Date.now(),
+                            message: String(processError?.message || processError)
+                        };
+                        showNoPreviewFallback();
+                    }
+                })();
+            },
+            onError: (error) => {
+                loraCardImageCache[loraName] = {
+                    src: safeOriginalUrl,
+                    objectUrl: null,
+                    status: 'error',
+                    errorAt: Date.now(),
+                    message: String(error?.message || error)
+                };
+                showNoPreviewFallback();
+            }
+        }).catch(() => {});
+    };
+
     void enqueueUrlImageDownload({
         key,
-        url: imageUrl,
+        url: safeShortcutUrl,
         headers,
-        shouldContinue: () => generation === loraCardLoadGeneration,
+        shouldContinue,
         onStarted: () => {
             const entry = loraCardImageCache[loraName] || null;
             if (entry && (entry.status === 'queued' || entry.status === 'loading')) {
@@ -546,68 +985,33 @@ function loadLoraCardImage(block, imageUrl, loraName) {
         },
         onLoaded: ({ objectUrl }) => {
             loraCardImageCache[loraName] = {
-                src: imageUrl,
+                src: safeShortcutUrl,
                 objectUrl,
                 status: 'loaded',
                 loadedAt: Date.now()
             };
 
-            if (!block || !document.body.contains(block)) {
-                return;
-            }
-
-            const nameOverlay = block.querySelector('.lora-name-overlay');
-            if (!nameOverlay) {
-                return;
-            }
-
-            block.querySelectorAll('.no-image').forEach(el => el.remove());
-            block.querySelectorAll('img.lora-image').forEach(img => img.remove());
-
-            const overlay = block.querySelector('.lora-loading-overlay');
-            const img = document.createElement('img');
-            img.className = 'lora-image';
-            img.alt = loraName;
-            img.loading = 'lazy';
-            img.decoding = 'async';
-            img.src = objectUrl;
-            block.insertBefore(img, nameOverlay);
-            if (overlay && overlay.parentNode === block) {
-                overlay.remove();
-            }
+            attachObjectUrlToCard(objectUrl);
         },
         onError: (error) => {
+            const msg = String(error?.message || error);
+            const isNotFound = /\bHTTP\s*404\b/i.test(msg);
+            if (isNotFound) {
+                // Shortcut doesn't exist yet: build it from original.
+                fallbackToOriginalAndMaybeUpload();
+                return;
+            }
+
             loraCardImageCache[loraName] = {
-                src: imageUrl,
+                src: safeShortcutUrl,
                 objectUrl: null,
                 status: 'error',
                 errorAt: Date.now(),
-                message: String(error?.message || error)
+                message: msg
             };
-
-            if (!block || !document.body.contains(block)) {
-                return;
-            }
-
-            const overlay = block.querySelector('.lora-loading-overlay');
-            if (overlay && overlay.parentNode === block) {
-                overlay.remove();
-            }
-
-            const fallback = document.createElement('div');
-            fallback.className = 'no-image';
-            fallback.textContent = 'No preview image';
-            block.insertBefore(fallback, nameOverlay);
-
-            delete block.dataset.imageLoading;
-            if (window.loraCardObserver) {
-                try {
-                    window.loraCardObserver.observe(block);
-                } catch (_) {
-                }
-            }
+            showNoPreviewFallback();
         }
-    });
+    }).catch(() => {});
 }
 
 function openDetailView(loraName) {
@@ -1374,10 +1778,21 @@ function renderLightboxThumbnails() {
         return;
     }
 
-    thumbContainer.innerHTML = lightboxState.images
-        .map((item, idx) => {
-            const isActive = idx === lightboxState.index ? 'is-active' : '';
-            const isLoading = !item.src || item.status !== 'loaded';
+    const total = lightboxState.images.length;
+    const currentIndex = Math.min(Math.max(0, Number(lightboxState.index) || 0), Math.max(0, total - 1));
+    const maxSide = 3;
+    const startIndex = Math.max(0, currentIndex - maxSide);
+    const endIndex = Math.min(total - 1, currentIndex + maxSide);
+    const visibleIndices = [];
+    for (let i = startIndex; i <= endIndex; i += 1) {
+        visibleIndices.push(i);
+    }
+
+    thumbContainer.innerHTML = visibleIndices
+        .map((idx) => {
+            const item = lightboxState.images[idx];
+            const isActive = idx === currentIndex ? 'is-active' : '';
+            const isLoading = !item?.src || item?.status !== 'loaded';
             return `
                 <button class="lightbox-thumb ${isActive} ${isLoading ? 'is-loading' : ''}" type="button" data-thumb-index="${idx}" aria-label="Image ${idx + 1}">
                     ${isLoading

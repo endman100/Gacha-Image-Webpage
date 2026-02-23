@@ -1,5 +1,17 @@
 const HF_HUB_PROMISE_KEY = '__hfHubModulePromise';
 
+let hiddenLoraNames = new Set();
+
+const HF_UPLOAD_COOLDOWN_MS = 60_000;
+let hfUploadSerialPromise = Promise.resolve();
+let hfLastUploadFinishedAtMs = 0;
+let hfUploadBlockedUntilMs = 0;
+
+const HF_UPLOAD_429_DELAY_MS = 10 * 60_000;
+
+const hfUploadFilesQueue = [];
+let hfUploadFilesInFlight = false;
+
 const TARGET_FOLDER_MAX_CONCURRENT_DOWNLOADS = 5;
 const targetFolderDownloadQueue = [];
 const targetFolderDownloadPromiseByKey = new Map();
@@ -9,6 +21,325 @@ const targetFolderLazyObserverByLora = {};
 
 function getTargetFolderDownloadKey(loraName, path) {
     return `${String(loraName || '')}::${String(path || '')}`;
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(ms) || 0)));
+}
+
+function extractHttpStatusFromError(error) {
+    if (!error) {
+        return 0;
+    }
+
+    const direct = Number(error?.status);
+    if (Number.isFinite(direct) && direct > 0) {
+        return direct;
+    }
+
+    const responseStatus = Number(error?.response?.status);
+    if (Number.isFinite(responseStatus) && responseStatus > 0) {
+        return responseStatus;
+    }
+
+    const causeStatus = Number(error?.cause?.status);
+    if (Number.isFinite(causeStatus) && causeStatus > 0) {
+        return causeStatus;
+    }
+
+    const message = String(error?.message || error);
+    const match = message.match(/\bHTTP\s*(\d{3})\b/i);
+    if (match) {
+        const parsed = Number(match[1]);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    return 0;
+}
+
+function getHfUploadBatchKey({ repo, accessToken }) {
+    return `${repo?.type || ''}:${repo?.name || ''}:${accessToken || ''}`;
+}
+
+function buildHfBatchCommitTitle(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    const titles = list
+        .map(item => String(item?.commitTitle || '').trim())
+        .filter(Boolean);
+
+    if (titles.length === 0) {
+        return 'Batch upload';
+    }
+
+    const first = titles[0];
+    const allSame = titles.every(t => t === first);
+    if (allSame) {
+        return first;
+    }
+
+    // Mixed titles: keep a stable base, but indicate batching.
+    return `${first} (+${Math.max(0, list.length - 1)} more)`;
+}
+
+function takeHfUploadEntriesByKey(batchKey) {
+    const taken = [];
+    if (!batchKey) {
+        return taken;
+    }
+
+    for (let i = hfUploadFilesQueue.length - 1; i >= 0; i -= 1) {
+        const item = hfUploadFilesQueue[i];
+        if (item && item.batchKey === batchKey) {
+            taken.unshift(item);
+            hfUploadFilesQueue.splice(i, 1);
+        }
+    }
+
+    return taken;
+}
+
+async function drainHfUploadFilesQueue() {
+    if (hfUploadFilesInFlight || hfUploadFilesQueue.length === 0) {
+        return;
+    }
+
+    hfUploadFilesInFlight = true;
+    const nextKey = hfUploadFilesQueue[0]?.batchKey || '';
+    let batchEntries = null;
+    let preparedUpload = null;
+
+    const broadcastCooldownTick = (payload) => {
+        const targets = batchEntries
+            ? [...batchEntries, ...hfUploadFilesQueue.filter(item => item?.batchKey === nextKey)]
+            : hfUploadFilesQueue.filter(item => item?.batchKey === nextKey);
+
+        targets.forEach(entry => {
+            if (typeof entry?.onCooldownTick === 'function') {
+                try {
+                    entry.onCooldownTick(payload);
+                } catch (_) {
+                }
+            }
+        });
+    };
+
+    const broadcastUploadStart = () => {
+        const targets = batchEntries
+            ? [...batchEntries, ...hfUploadFilesQueue.filter(item => item?.batchKey === nextKey)]
+            : hfUploadFilesQueue.filter(item => item?.batchKey === nextKey);
+
+        targets.forEach(entry => {
+            if (typeof entry?.onUploadStart === 'function') {
+                try {
+                    entry.onUploadStart();
+                } catch (_) {
+                }
+            }
+        });
+    };
+
+    try {
+        // Prepare the batch only when the upload is about to happen (after cooldown).
+        // But keep it stable across 429 retries.
+        await runHfUploadWithCooldown(
+            async () => {
+                if (!preparedUpload) {
+                    batchEntries = takeHfUploadEntriesByKey(nextKey);
+                    if (!batchEntries.length) {
+                        return;
+                    }
+
+                    const first = batchEntries[0];
+                    const repo = first.repo;
+                    const accessToken = first.accessToken;
+                    const hub = first.hub;
+
+                    const flatFiles = [];
+                    batchEntries.forEach(entry => {
+                        const arr = Array.isArray(entry.files) ? entry.files : [];
+                        arr.forEach(f => flatFiles.push(f));
+                    });
+
+                    // De-dupe by path (last one wins).
+                    const byPath = new Map();
+                    flatFiles.forEach(f => {
+                        const path = String(f?.path || '').trim();
+                        if (!path) {
+                            return;
+                        }
+                        byPath.set(path, f);
+                    });
+
+                    preparedUpload = {
+                        hub,
+                        repo,
+                        accessToken,
+                        files: Array.from(byPath.values()),
+                        commitTitle: buildHfBatchCommitTitle(batchEntries)
+                    };
+                }
+
+                if (!preparedUpload.files.length) {
+                    return;
+                }
+
+                await preparedUpload.hub.uploadFiles({
+                    repo: preparedUpload.repo,
+                    accessToken: preparedUpload.accessToken,
+                    files: preparedUpload.files,
+                    commitTitle: preparedUpload.commitTitle
+                });
+
+                batchEntries?.forEach(entry => {
+                    if (typeof entry?.resolve === 'function') {
+                        entry.resolve();
+                    }
+                });
+            },
+            {
+                onCooldownTick: broadcastCooldownTick,
+                onUploadStart: broadcastUploadStart
+            }
+        );
+    } catch (error) {
+        const status = extractHttpStatusFromError(error);
+        if (status === 429 && Array.isArray(batchEntries) && batchEntries.length > 0) {
+            // Put the batch back into the queue and wait 10 minutes before trying again.
+            hfUploadBlockedUntilMs = Math.max(hfUploadBlockedUntilMs || 0, Date.now() + HF_UPLOAD_429_DELAY_MS);
+            hfUploadFilesQueue.unshift(...batchEntries);
+
+            // Best-effort notify UI immediately (the next drain will also tick).
+            const remainingMs = Math.max(0, hfUploadBlockedUntilMs - Date.now());
+            const payload = {
+                remainingMs,
+                remainingSeconds: Math.max(0, Math.ceil(remainingMs / 1000)),
+                waitUntilMs: hfUploadBlockedUntilMs,
+                phase: 'rateLimit429'
+            };
+            batchEntries.forEach(entry => {
+                if (typeof entry?.onCooldownTick === 'function') {
+                    try {
+                        entry.onCooldownTick(payload);
+                    } catch (_) {
+                    }
+                }
+            });
+        } else {
+            batchEntries?.forEach(entry => {
+                if (typeof entry?.reject === 'function') {
+                    entry.reject(error);
+                }
+            });
+        }
+    } finally {
+        hfUploadFilesInFlight = false;
+        if (hfUploadFilesQueue.length > 0) {
+            void drainHfUploadFilesQueue();
+        }
+    }
+}
+
+function enqueueHfUploadFiles({ hub, repo, accessToken, files, commitTitle, onCooldownTick, onUploadStart }) {
+    if (!hub) {
+        return Promise.reject(new Error('Missing hub for enqueueHfUploadFiles'));
+    }
+    if (!repo || !repo.type || !repo.name) {
+        return Promise.reject(new Error('Missing repo for enqueueHfUploadFiles'));
+    }
+    const token = String(accessToken || '').trim();
+    if (!token) {
+        return Promise.reject(new Error('Missing accessToken for enqueueHfUploadFiles'));
+    }
+
+    const normalizedFiles = (Array.isArray(files) ? files : [])
+        .filter(f => f && String(f.path || '').trim());
+    if (normalizedFiles.length === 0) {
+        return Promise.resolve();
+    }
+
+    const batchKey = getHfUploadBatchKey({ repo, accessToken: token });
+
+    return new Promise((resolve, reject) => {
+        hfUploadFilesQueue.push({
+            batchKey,
+            hub,
+            repo,
+            accessToken: token,
+            files: normalizedFiles,
+            commitTitle: String(commitTitle || '').trim(),
+            onCooldownTick,
+            onUploadStart,
+            resolve,
+            reject
+        });
+        void drainHfUploadFilesQueue();
+    });
+}
+
+// Serializes all HF uploads and enforces a cooldown AFTER each upload completes.
+// Specifically: before starting an upload, wait until 60s have passed since the last upload finished.
+function runHfUploadWithCooldown(uploadFn, options = {}) {
+    if (typeof uploadFn !== 'function') {
+        return Promise.reject(new Error('Missing upload function for runHfUploadWithCooldown'));
+    }
+
+    const cooldownMs = Number(options?.cooldownMs ?? HF_UPLOAD_COOLDOWN_MS);
+    const onCooldownTick = typeof options?.onCooldownTick === 'function' ? options.onCooldownTick : null;
+    const onUploadStart = typeof options?.onUploadStart === 'function' ? options.onUploadStart : null;
+
+    const waitWithTicks = async (totalMs, phase) => {
+        let remainingMs = Math.max(0, Number(totalMs) || 0);
+        let lastEmittedRemainingSeconds = null;
+
+        while (remainingMs > 0) {
+            const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+            if (onCooldownTick && lastEmittedRemainingSeconds !== remainingSeconds) {
+                lastEmittedRemainingSeconds = remainingSeconds;
+                try {
+                    onCooldownTick({
+                        remainingMs,
+                        remainingSeconds,
+                        waitUntilMs: Date.now() + remainingMs,
+                        phase: String(phase || 'cooldown')
+                    });
+                } catch (_) {
+                }
+            }
+
+            const step = Math.min(1000, remainingMs);
+            await sleep(step);
+            remainingMs -= step;
+        }
+    };
+
+    const runner = async () => {
+        const cooldownTargetMs = Math.max(0, (hfLastUploadFinishedAtMs || 0) + (Number.isFinite(cooldownMs) ? cooldownMs : HF_UPLOAD_COOLDOWN_MS));
+        const blockedTargetMs = Math.max(0, Number(hfUploadBlockedUntilMs) || 0);
+        const waitUntilMs = Math.max(cooldownTargetMs, blockedTargetMs);
+        const initialWaitMs = waitUntilMs - Date.now();
+        if (initialWaitMs > 0) {
+            const phase = blockedTargetMs > cooldownTargetMs ? 'rateLimit429' : 'cooldown';
+            await waitWithTicks(initialWaitMs, phase);
+        }
+
+        try {
+            if (onUploadStart) {
+                try {
+                    onUploadStart();
+                } catch (_) {
+                }
+            }
+
+            return await uploadFn();
+        } finally {
+            hfLastUploadFinishedAtMs = Date.now();
+        }
+    };
+
+    const scheduled = hfUploadSerialPromise.then(runner, runner);
+    // Keep the chain alive even if a particular upload fails.
+    hfUploadSerialPromise = scheduled.catch(() => undefined);
+    return scheduled;
 }
 
 function waitForImageReady(src, timeoutMs = 30000) {
@@ -423,6 +754,14 @@ async function fetchLoRAFiles(token) {
         await fetchAndLogPrivateTokenFile(repo, token);
         await fetchWorkflowJsonFile(repo, token);
 
+        try {
+            hiddenLoraNames = await fetchHiddenLoraNames({ repoId: repo, token });
+        } catch (error) {
+            // Non-fatal: if hidden.json is unreadable, show everything.
+            console.warn('Failed to load hidden.json:', error?.message || error);
+            hiddenLoraNames = new Set();
+        }
+
         // Access files in the lora folder
         const treeUrl = `https://huggingface.co/api/models/${repo}/tree/main/lora`;
 
@@ -494,8 +833,19 @@ async function fetchLoRAFiles(token) {
         // Store data for detail view
         allLoRAData = loraGrouped;
 
-        // Only keep LoRAs with images or safetensors
-        const filteredLoraList = loraList.filter(lora => lora.image || lora.safetensors);
+        // Only keep LoRAs with images or safetensors, and exclude items listed in hidden.json
+        const filteredLoraList = loraList.filter(lora => {
+            if (!(lora && (lora.image || lora.safetensors))) {
+                return false;
+            }
+
+            const name = String(lora.name || '').trim();
+            if (!name) {
+                return false;
+            }
+
+            return !(hiddenLoraNames && typeof hiddenLoraNames.has === 'function' && hiddenLoraNames.has(name));
+        });
 
         if (filteredLoraList.length === 0) {
             throw new Error('No valid LoRA models found in the lora folder.');
@@ -562,13 +912,104 @@ async function fetchWorkflowJsonFile(repo, token) {
 }
 
 function getFileUrl(path) {
-    // Build Hugging Face file URL
-    return `https://huggingface.co/Gazai-ai/Gacha-LoRA/resolve/main/${path}`;
+    // Build Hugging Face file URL (encode each path segment)
+    const encodedPath = (typeof encodeHfPath === 'function')
+        ? encodeHfPath(path)
+        : String(path || '');
+    return `https://huggingface.co/Gazai-ai/Gacha-LoRA/resolve/main/${encodedPath}`;
 }
 
 function encodeHfPath(path) {
     const parts = String(path || '').split('/').filter(Boolean);
     return parts.map(part => encodeURIComponent(part)).join('/');
+}
+
+function normalizeHiddenJson(raw) {
+    // Supported formats:
+    // 1) ["lora1", "lora2"]
+    // 2) { hidden: ["lora1", ...] }
+    // 3) { loras: ["lora1", ...] }
+    if (!raw) {
+        return [];
+    }
+
+    if (Array.isArray(raw)) {
+        return raw.map(x => String(x || '').trim()).filter(Boolean);
+    }
+
+    if (typeof raw === 'object') {
+        const candidates = raw.hidden || raw.loras || raw.hiddenLoras || raw.hidden_loras;
+        if (Array.isArray(candidates)) {
+            return candidates.map(x => String(x || '').trim()).filter(Boolean);
+        }
+    }
+
+    return [];
+}
+
+async function fetchHiddenLoraNames({ repoId, token }) {
+    const safeRepo = String(repoId || '').trim();
+    const safeToken = String(token || '').trim();
+    if (!safeRepo || !safeToken) {
+        return new Set();
+    }
+
+    const raw = await fetchRepoJsonFile(safeRepo, 'hidden.json', safeToken);
+    if (raw == null) {
+        return new Set();
+    }
+
+    return new Set(normalizeHiddenJson(raw));
+}
+
+async function uploadHiddenJson({ repoId, token, names }) {
+    const safeRepo = String(repoId || '').trim();
+    const safeToken = String(token || '').trim();
+    if (!safeRepo || !safeToken) {
+        throw new Error('Missing repoId/token for uploadHiddenJson');
+    }
+
+    const unique = Array.from(new Set((Array.isArray(names) ? names : []).map(x => String(x || '').trim()).filter(Boolean)));
+    const payload = {
+        hidden: unique
+    };
+    const jsonText = JSON.stringify(payload, null, 2);
+    const blob = new Blob([jsonText], { type: 'application/json' });
+
+    const hub = await getHfHubModule();
+    const repo = { type: 'model', name: safeRepo };
+    await enqueueHfUploadFiles({
+        hub,
+        repo,
+        accessToken: safeToken,
+        files: [{ path: 'hidden.json', content: blob }],
+        commitTitle: 'Update hidden.json'
+    });
+}
+
+async function hideLoraModelInHfHiddenJson({ loraName, token }) {
+    const repoId = 'Gazai-ai/Gacha-LoRA';
+    const safeName = String(loraName || '').trim();
+    const safeToken = String(token || '').trim();
+
+    if (!safeName) {
+        throw new Error('Missing loraName');
+    }
+    if (!safeToken) {
+        throw new Error('Missing Hugging Face token');
+    }
+
+    // Ensure we have the latest hidden list.
+    let current = new Set();
+    try {
+        current = await fetchHiddenLoraNames({ repoId, token: safeToken });
+    } catch (_) {
+        current = new Set(hiddenLoraNames || []);
+    }
+
+    current.add(safeName);
+    await uploadHiddenJson({ repoId, token: safeToken, names: Array.from(current) });
+    hiddenLoraNames = current;
 }
 
 async function fetchRepoJsonFile(repoId, filePath, token) {
@@ -627,7 +1068,8 @@ async function saveScenesFromTable({ type, loraName, tbody, statusElementId, sav
         const jsonText = JSON.stringify(rows, null, 2);
         const blob = new Blob([jsonText], { type: 'application/json' });
 
-        await hub.uploadFiles({
+        await enqueueHfUploadFiles({
+            hub,
             repo,
             accessToken: token,
             files: [
@@ -638,7 +1080,16 @@ async function saveScenesFromTable({ type, loraName, tbody, statusElementId, sav
             ],
             commitTitle: type === 'general'
                 ? 'Save general scenes'
-                : `Save character scenes for ${sanitizeSceneName(loraName)}`
+                : `Save character scenes for ${sanitizeSceneName(loraName)}`,
+            onCooldownTick: ({ remainingSeconds, phase }) => {
+                const msg = String(phase) === 'rateLimit429'
+                    ? `HF rate limited (429). Requeued; retry in ${remainingSeconds}s…`
+                    : `Waiting HF cooldown: ${remainingSeconds}s…`;
+                setStatus(statusElementId, msg, 'loading');
+            },
+            onUploadStart: () => {
+                setStatus(statusElementId, `Saving: /${filePath}`, 'loading');
+            }
         });
 
         setStatus(statusElementId, `Saved: /${filePath} (${rows.length} rows)`, 'success');

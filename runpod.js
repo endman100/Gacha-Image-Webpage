@@ -50,65 +50,35 @@ function buildRunpodErrorDetails(error) {
     };
 }
 
-const hfUploadQueue = [];
-let hfUploadInFlight = false;
-
-function getHfUploadKey(item) {
-    return `${item?.repo?.type || ''}:${item?.repo?.name || ''}:${item?.accessToken || ''}`;
-}
-
-function buildHfBatchCommitTitle(items) {
-    const baseTitle = items?.[0]?.commitTitle || 'Upload workflow results';
-    if (items.length <= 1) {
-        return baseTitle;
-    }
-    return `${baseTitle} (+${items.length - 1} more)`;
-}
-
-async function drainHfUploadQueue() {
-    if (hfUploadInFlight || hfUploadQueue.length === 0) {
-        return;
+function enqueueRunpodHfUpload({ hub, repo, accessToken, file, commitTitle }) {
+    if (typeof enqueueHfUploadFiles !== 'function') {
+        return Promise.reject(new Error('enqueueHfUploadFiles() is not available. Ensure huggingface.js is loaded.'));
     }
 
-    hfUploadInFlight = true;
-    const baseKey = getHfUploadKey(hfUploadQueue[0]);
-    const batch = [];
-    const remaining = [];
+    return enqueueHfUploadFiles({
+        hub,
+        repo,
+        accessToken,
+        files: [file],
+        commitTitle,
+        onCooldownTick: ({ remainingSeconds, phase }) => {
+            const msg = String(phase) === 'retry429'
+                ? `HF rate limited (429). Retrying in ${remainingSeconds}s…`
+                : String(phase) === 'rateLimit429'
+                    ? `HF rate limited (429). Requeued; retry in ${remainingSeconds}s…`
+                : `Waiting HF upload cooldown: ${remainingSeconds}s…`;
 
-    for (const item of hfUploadQueue) {
-        if (getHfUploadKey(item) === baseKey) {
-            batch.push(item);
-        } else {
-            remaining.push(item);
+            if (!showRunpodSecondaryStatus(msg, 'loading')) {
+                showRunpodStatus(msg, 'loading');
+            }
+        },
+        onUploadStart: () => {
+            if (!showRunpodSecondaryStatus('Uploading to Hugging Face…', 'loading')) {
+                showRunpodStatus('Uploading to Hugging Face…', 'loading');
+            }
         }
-    }
-
-    hfUploadQueue.length = 0;
-    hfUploadQueue.push(...remaining);
-
-    try {
-        const first = batch[0];
-        await first.hub.uploadFiles({
-            repo: first.repo,
-            accessToken: first.accessToken,
-            files: batch.map(item => item.file),
-            commitTitle: buildHfBatchCommitTitle(batch)
-        });
-        batch.forEach(item => item.resolve());
-    } catch (error) {
-        batch.forEach(item => item.reject(error));
-    } finally {
-        hfUploadInFlight = false;
-        if (hfUploadQueue.length > 0) {
-            void drainHfUploadQueue();
-        }
-    }
-}
-
-function enqueueHfUpload(item) {
-    return new Promise((resolve, reject) => {
-        hfUploadQueue.push({ ...item, resolve, reject });
-        void drainHfUploadQueue();
+    }).finally(() => {
+        showRunpodSecondaryStatus('', 'loading');
     });
 }
 
@@ -191,7 +161,7 @@ async function runWorkflowWithRunpod(loraName) {
         const endpointId = 'tj36t6j8wpuj69';
         const runpodToken = privateTokenData.runpod;
         const hfToken = resolvedHfToken;
-        const maxThreads = Math.min(5, totalRounds);
+        const maxThreads = Math.min(10, totalRounds);
 
         if (!hfToken) {
             throw new Error('Hugging Face token not found. Please re-search LoRA.');
@@ -209,6 +179,9 @@ async function runWorkflowWithRunpod(loraName) {
         let finishedCount = 0;
         let uploadedCount = 0;
         let failedCount = 0;
+        let uploadFailedCount = 0;
+        let uploadPendingCount = 0;
+        const pendingUploads = [];
         const failedRounds = [];
 
         function renderProgress(message, type = 'loading') {
@@ -218,15 +191,16 @@ async function runWorkflowWithRunpod(loraName) {
                     total: totalRounds,
                     finished: finishedCount,
                     success: uploadedCount,
-                    failed: failedCount,
+                    failed: failedCount + uploadFailedCount,
                     running: runningCount
                 });
                 return;
             }
 
+            const totalFailed = failedCount + uploadFailedCount;
             const waitingCount = Math.max(0, totalRounds - finishedCount - runningCount);
             showRunpodStatus(
-                `Progress ${finishedCount}/${totalRounds} (success ${uploadedCount}, failed ${failedCount}, running ${runningCount}, waiting ${waitingCount})`,
+                `Progress ${finishedCount}/${totalRounds} (success ${uploadedCount}, failed ${totalFailed}, running ${runningCount}, waiting ${waitingCount})`,
                 type
             );
         }
@@ -342,7 +316,10 @@ async function runWorkflowWithRunpod(loraName) {
                 progressUI.setRoundFileName(round, fileName);
             }
 
-            await enqueueHfUpload({
+            // Do NOT block Runpod workers on Hugging Face upload.
+            // Enqueue upload to HF queue (which is serialized/cooldowned elsewhere) and let the worker continue.
+            uploadPendingCount += 1;
+            const uploadPromise = Promise.resolve().then(() => enqueueRunpodHfUpload({
                 hub,
                 repo,
                 accessToken: hfToken,
@@ -351,15 +328,32 @@ async function runWorkflowWithRunpod(loraName) {
                     content: imageBlob
                 },
                 commitTitle: `Upload workflow result ${round}/${totalRounds} for ${loraName}`
-            });
+            }));
 
-            uploadedCount += 1;
-            renderProgress(`Round ${round}/${totalRounds} complete, uploaded ${uploadedCount}/${totalRounds} to /${uploadPath}`);
-            if (progressUI) {
-                progressUI.setRoundState(round, 'done', 'Done');
-            }
+            pendingUploads.push(uploadPromise);
 
-            await loadTargetFolderImages(loraName, hfToken, { reset: false, background: true });
+            uploadPromise
+                .then(() => {
+                    uploadedCount += 1;
+                    renderProgress(`Round ${round}/${totalRounds} uploaded (${uploadedCount}/${totalRounds})`);
+                    if (progressUI) {
+                        progressUI.setRoundState(round, 'done', 'Done');
+                    }
+                    void loadTargetFolderImages(loraName, hfToken, { reset: false, background: true });
+                })
+                .catch((error) => {
+                    uploadFailedCount += 1;
+                    failedRounds.push(`Round ${round} upload: ${String(error?.message || error)}`);
+                    renderProgress(`Round ${round}/${totalRounds} upload failed`);
+                    if (progressUI) {
+                        progressUI.setRoundState(round, 'failed', String(error?.message || 'Upload failed'));
+                    }
+                })
+                .finally(() => {
+                    uploadPendingCount = Math.max(0, uploadPendingCount - 1);
+                });
+
+            renderProgress(`Round ${round}/${totalRounds} complete (upload queued, pending ${uploadPendingCount})`);
         }
 
         async function worker() {
@@ -405,9 +399,15 @@ async function runWorkflowWithRunpod(loraName) {
             Array.from({ length: maxThreads }, () => worker())
         );
 
-        if (failedCount > 0) {
+        if (pendingUploads.length > 0) {
+            renderProgress(`Runpod generation finished. Waiting for ${pendingUploads.length} Hugging Face uploads... (pending ${uploadPendingCount})`);
+            await Promise.allSettled(pendingUploads);
+        }
+
+        const totalFailed = failedCount + uploadFailedCount;
+        if (totalFailed > 0) {
             const preview = failedRounds.slice(0, 3).join('；');
-            renderProgress(`✗ Workflow finished (success ${uploadedCount}/${totalRounds}, failed ${failedCount}). ${preview}`, 'error');
+            renderProgress(`✗ Workflow finished (success ${uploadedCount}/${totalRounds}, failed ${totalFailed}). ${preview}`, 'error');
         } else {
             renderProgress(`✓ Workflow complete, uploaded ${uploadedCount} images (${totalRounds} total)`, 'success');
         }
@@ -433,6 +433,10 @@ function createRunpodProgressUI(times) {
 
     const listEl = document.createElement('div');
     listEl.className = 'runpod-progress-list';
+
+    const secondaryStatusEl = document.createElement('div');
+    secondaryStatusEl.className = 'runpod-secondary-status loading';
+    secondaryStatusEl.style.display = 'none';
 
     const roundEls = Array.from({ length: times }, (_, index) => {
         const round = index + 1;
@@ -463,7 +467,7 @@ function createRunpodProgressUI(times) {
     });
 
     runpodStatus.innerHTML = '';
-    runpodStatus.append(summaryEl, listEl);
+    runpodStatus.append(summaryEl, listEl, secondaryStatusEl);
 
     function setType(type) {
         runpodStatus.className = `upload-status show ${type}`;
@@ -547,6 +551,53 @@ function createRunpodProgressUI(times) {
         setRoundFileName,
         setRoundRunningProgress
     };
+}
+
+function ensureRunpodSecondaryStatusElement() {
+    const runpodStatus = document.getElementById('runpodStatus');
+    if (!runpodStatus) {
+        return null;
+    }
+
+    // Only use secondary status when the progress UI exists.
+    const listEl = runpodStatus.querySelector('.runpod-progress-list');
+    if (!listEl) {
+        return null;
+    }
+
+    let el = runpodStatus.querySelector('.runpod-secondary-status');
+    if (el) {
+        return el;
+    }
+
+    el = document.createElement('div');
+    el.className = 'runpod-secondary-status loading';
+    el.style.display = 'none';
+    runpodStatus.appendChild(el);
+    return el;
+}
+
+function showRunpodSecondaryStatus(message, type = 'loading') {
+    const el = ensureRunpodSecondaryStatusElement();
+    if (!el) {
+        return false;
+    }
+
+    const text = String(message || '');
+    const safeType = String(type || 'loading');
+    const nextClass = `runpod-secondary-status ${safeType}`;
+
+    if (el.textContent === text && el.className === nextClass) {
+        const shouldShow = !!text;
+        if ((el.style.display !== 'none') === shouldShow) {
+            return true;
+        }
+    }
+
+    el.textContent = text;
+    el.className = nextClass;
+    el.style.display = text ? 'block' : 'none';
+    return true;
 }
 
 async function fetchGeneratedImageBlob(imageSrc) {
