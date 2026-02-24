@@ -9,8 +9,12 @@ function collectPromptJobsFromSceneTableBody(tbody) {
     for (const tr of rows) {
         const textareas = tr.querySelectorAll('textarea.scene-textarea');
         const prompt = (textareas?.[1]?.value || '').trim();
+        const enabledToggle = tr.querySelector('input.scene-enable-checkbox');
         const checkbox = tr.querySelector('input.scene-checkbox');
         const keepClothes = !!checkbox?.checked;
+        if (enabledToggle && !enabledToggle.checked) {
+            continue;
+        }
         if (prompt) {
             jobs.push({ prompt, keepClothes });
         }

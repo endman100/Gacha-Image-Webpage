@@ -13,6 +13,8 @@ const detailTitle = document.getElementById('detailTitle');
     const unlockPasswordInput = document.getElementById('unlockPassword');
             const UNLOCK_PASSWORD_COOKIE_KEY = 'unlockPassword';
             const UNLOCK_PASSWORD_COOKIE_DAYS = 30;
+            const SCENE_ENABLE_COOKIE_KEY = 'sceneEnableState';
+            const SCENE_ENABLE_COOKIE_DAYS = 30;
     const ENCRYPTED_HF_TOKEN = {
         salt: 'ijN318FRb0T1IkFERq5V3Q==',
         iv: 'lz07vwtQAGQW0ZtI',
@@ -182,6 +184,11 @@ function saveUnlockPasswordToCookie(password) {
     document.cookie = `${UNLOCK_PASSWORD_COOKIE_KEY}=${encodeURIComponent(password || '')}; path=/; expires=${expiresAt}; SameSite=Lax`;
 }
 
+function saveSceneEnableStateToCookie(state) {
+    const expiresAt = new Date(Date.now() + SCENE_ENABLE_COOKIE_DAYS * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = `${SCENE_ENABLE_COOKIE_KEY}=${encodeURIComponent(JSON.stringify(state || {}))}; path=/; expires=${expiresAt}; SameSite=Lax`;
+}
+
 function getCookieValue(name) {
     const cookiePrefix = `${name}=`;
     const cookieParts = document.cookie.split(';');
@@ -194,6 +201,20 @@ function getCookieValue(name) {
     }
 
     return '';
+}
+
+function loadSceneEnableStateFromCookie() {
+    const raw = getCookieValue(SCENE_ENABLE_COOKIE_KEY);
+    if (!raw) {
+        return {};
+    }
+
+    try {
+        const parsed = JSON.parse(raw);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+        return {};
+    }
 }
 
 function restoreUnlockPasswordFromCookie() {
@@ -1045,7 +1066,7 @@ function openDetailView(loraName) {
     html += '<div class="scene-header"></div>';
     html += '<div class="scene-table-wrapper">';
     html += '<table class="scene-table">';
-    html += '<thead><tr><th>Scene Design</th><th>Prompt</th><th>Keep Outfit Design</th><th>Actions</th></tr></thead>';
+    html += '<thead><tr><th>Scene Design</th><th>Prompt</th><th>Keep Outfit Design</th><th>Actions</th><th>Enable</th></tr></thead>';
     html += '<tbody id="generalScenesTbody"></tbody>';
     html += '</table>';
     html += '</div>';
@@ -1065,7 +1086,7 @@ function openDetailView(loraName) {
     html += '<div class="scene-header"></div>';
     html += '<div class="scene-table-wrapper">';
     html += '<table class="scene-table">';
-    html += '<thead><tr><th>Scene Design</th><th>Prompt</th><th>Keep Outfit Design</th><th>Actions</th></tr></thead>';
+    html += '<thead><tr><th>Scene Design</th><th>Prompt</th><th>Keep Outfit Design</th><th>Actions</th><th>Enable</th></tr></thead>';
     html += '<tbody id="characterScenesTbody"></tbody>';
     html += '</table>';
     html += '</div>';
@@ -1133,20 +1154,29 @@ function setupSceneEditors(loraName) {
         return;
     }
 
+    generalTbody.dataset.sceneType = 'general';
+    generalTbody.dataset.loraName = loraName;
+    characterTbody.dataset.sceneType = 'character';
+    characterTbody.dataset.loraName = loraName;
+
     addGeneralBtn.addEventListener('click', () => {
         appendSceneRow(generalTbody, { scenes: '', prompt: '', keepClothes: false });
+        saveSceneEnableStateFromTable(generalTbody);
     });
 
     addCharacterBtn.addEventListener('click', () => {
         appendSceneRow(characterTbody, { scenes: '', prompt: '', keepClothes: false });
+        saveSceneEnableStateFromTable(characterTbody);
     });
 
     addGeneralAiBtn.addEventListener('click', async () => {
         await addSceneRowByAi({ tbody: generalTbody, triggerBtn: addGeneralAiBtn });
+        saveSceneEnableStateFromTable(generalTbody);
     });
 
     addCharacterAiBtn.addEventListener('click', async () => {
         await addSceneRowByAi({ tbody: characterTbody, triggerBtn: addCharacterAiBtn });
+        saveSceneEnableStateFromTable(characterTbody);
     });
 
     saveGeneralBtn.addEventListener('click', async () => {
@@ -1180,6 +1210,10 @@ function setupSceneEditors(loraName) {
 function appendSceneRow(tbody, row) {
     const normalized = normalizeSceneRow(row);
 
+    const existingRows = tbody.querySelectorAll('tr.scene-row');
+    const nextRowIndex = existingRows ? existingRows.length : 0;
+    const storedEnableStates = getSceneEnableStateForTable(tbody);
+
     const tr = document.createElement('tr');
     tr.className = 'scene-row';
 
@@ -1199,6 +1233,18 @@ function appendSceneRow(tbody, row) {
     keepInput.className = 'scene-checkbox';
     keepInput.title = 'Keep outfit design';
     keepTd.appendChild(keepInput);
+
+    const enableTd = document.createElement('td');
+    enableTd.className = 'scene-enable-cell';
+    const enableInput = document.createElement('input');
+    enableInput.type = 'checkbox';
+    enableInput.checked = typeof normalized.enabled === 'boolean' ? normalized.enabled : true;
+    if (storedEnableStates && typeof storedEnableStates[nextRowIndex] === 'boolean') {
+        enableInput.checked = storedEnableStates[nextRowIndex];
+    }
+    enableInput.className = 'scene-enable-checkbox';
+    enableInput.title = 'Enable this scene in generation';
+    enableTd.appendChild(enableInput);
 
     const promptTd = document.createElement('td');
     const promptInput = document.createElement('textarea');
@@ -1222,6 +1268,7 @@ function appendSceneRow(tbody, row) {
         if (!tbody.querySelector('tr.scene-row')) {
             appendSceneRow(tbody, { scenes: '', prompt: '', keepClothes: false });
         }
+        saveSceneEnableStateFromTable(tbody);
     });
     const convertBtn = document.createElement('button');
     convertBtn.type = 'button';
@@ -1265,13 +1312,28 @@ function appendSceneRow(tbody, row) {
     actionStack.append(removeBtn, convertBtn);
     actionTd.appendChild(actionStack);
 
-    tr.append(scenesTd, promptTd, keepTd, actionTd);
+    tr.append(scenesTd, promptTd, keepTd, actionTd, enableTd);
     tbody.appendChild(tr);
+
+    enableInput.addEventListener('change', () => {
+        setSceneRowEnabled(tr, enableInput.checked);
+        saveSceneEnableStateFromTable(tbody);
+    });
+
+    setSceneRowEnabled(tr, enableInput.checked);
 
     autoResizeTextarea(scenesInput);
     autoResizeTextarea(promptInput);
 
     return { tr, scenesInput, promptInput };
+}
+
+function setSceneRowEnabled(tr, enabled) {
+    if (!tr) {
+        return;
+    }
+
+    tr.classList.toggle('scene-row-disabled', !enabled);
 }
 
 async function addSceneRowByAi({ tbody, triggerBtn }) {
@@ -1337,7 +1399,73 @@ function normalizeSceneRow(row) {
     const scenes = (row?.scenes ?? row?.scene ?? row?.['scene design'] ?? '').toString();
     const prompt = (row?.prompt ?? '').toString();
     const keepClothes = !!(row?.keepClothes ?? row?.keep_clothes ?? row?.['change clothes']);
-    return { scenes, prompt, keepClothes };
+    const enabled = row?.enabled;
+    return { scenes, prompt, keepClothes, enabled };
+}
+
+function getSceneEnableStateKey(type, loraName) {
+    const safeName = sanitizeSceneName(loraName);
+    return type === 'general' ? 'general' : `character:${safeName}`;
+}
+
+function getSceneEnableStateForTable(tbody) {
+    if (!tbody) {
+        return null;
+    }
+
+    const type = tbody.dataset.sceneType;
+    const loraName = tbody.dataset.loraName || '';
+    if (!type) {
+        return null;
+    }
+
+    const state = loadSceneEnableStateFromCookie();
+    const key = getSceneEnableStateKey(type, loraName);
+    const list = state[key];
+    return Array.isArray(list) ? list : null;
+}
+
+function saveSceneEnableStateFromTable(tbody) {
+    if (!tbody) {
+        return;
+    }
+
+    const type = tbody.dataset.sceneType;
+    const loraName = tbody.dataset.loraName || '';
+    if (!type) {
+        return;
+    }
+
+    const rows = Array.from(tbody.querySelectorAll('tr.scene-row'));
+    const values = rows.map(tr => {
+        const toggle = tr.querySelector('input.scene-enable-checkbox');
+        return toggle ? !!toggle.checked : true;
+    });
+
+    const state = loadSceneEnableStateFromCookie();
+    const key = getSceneEnableStateKey(type, loraName);
+    state[key] = values;
+    saveSceneEnableStateToCookie(state);
+}
+
+function applySceneEnableStateToTable(tbody) {
+    const stored = getSceneEnableStateForTable(tbody);
+    if (!stored || !tbody) {
+        return;
+    }
+
+    const rows = Array.from(tbody.querySelectorAll('tr.scene-row'));
+    rows.forEach((tr, index) => {
+        const toggle = tr.querySelector('input.scene-enable-checkbox');
+        if (!toggle) {
+            return;
+        }
+
+        if (typeof stored[index] === 'boolean') {
+            toggle.checked = stored[index];
+        }
+        setSceneRowEnabled(tr, toggle.checked);
+    });
 }
 
 function collectScenesFromTable(tbody) {
@@ -1421,11 +1549,13 @@ async function loadScenesIntoTable({ type, loraName, tbody, statusElementId }) {
         tbody.innerHTML = '';
         if (rows.length === 0) {
             appendSceneRow(tbody, { scenes: '', prompt: '', keepClothes: false });
+            applySceneEnableStateToTable(tbody);
             setStatus(statusElementId, `No data yet: /${filePath}`, 'loading');
             return;
         }
 
         rows.forEach(row => appendSceneRow(tbody, row));
+        applySceneEnableStateToTable(tbody);
         setStatus(statusElementId, `Loaded: /${filePath} (${rows.length} rows)`, 'success');
     } catch (error) {
         // Parse failure or permission issue
