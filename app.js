@@ -1649,6 +1649,12 @@ function setupTargetFolderImageZoom() {
             return;
         }
 
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeImageLightbox();
+            return;
+        }
+
         if (event.key === 'ArrowLeft') {
             event.preventDefault();
             navigateLightbox(-1);
@@ -1775,6 +1781,13 @@ function ensureImageLightbox() {
         nextBtn.addEventListener('click', (event) => {
             event.stopPropagation();
             navigateLightbox(1);
+        });
+    }
+    const mainImage = lightbox.querySelector('.lightbox-main');
+    if (mainImage) {
+        mainImage.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeImageLightbox();
         });
     }
 
@@ -1938,6 +1951,11 @@ function renderLightboxThumbnails() {
 function updateLightboxNavState() {
     const lightbox = document.querySelector('.image-lightbox');
     if (!lightbox) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeImageLightbox();
+            return;
+        }
         return;
     }
 
@@ -2017,6 +2035,7 @@ function updateTargetFolderImageTile(loraName, entry) {
 }
 
 function backToMainView() {
+    closeImageLightbox();
     mainView.style.display = 'block';
     detailView.classList.remove('active');
 

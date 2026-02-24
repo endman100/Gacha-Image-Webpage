@@ -982,11 +982,13 @@
             height: 100vh;
             height: 100dvh;
             overflow: hidden;
+            pointer-events: none;
         }
 
         .image-lightbox.is-active {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
         }
 
         .image-lightbox .lightbox-main {
